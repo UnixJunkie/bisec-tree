@@ -1,0 +1,10 @@
+(jbuild_version 1)
+
+(library
+ ((name        vpt)
+  (public_name vpt)
+  (modules (bisec_tree myArray))))
+
+(executable
+ ((name        test)
+  (libraries (unix))))

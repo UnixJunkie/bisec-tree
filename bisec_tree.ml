@@ -18,7 +18,7 @@ module Make = functor (P: Point) -> struct
      the tree recursively.
      This should save storage space and accelerate queries.
      The best value for k is probably dataset and application dependent. *)
-
+  
   type t = Empty
          | Branch of
              { (* left half-space *)
@@ -31,14 +31,15 @@ module Make = functor (P: Point) -> struct
                r_min: float; (* min dist to r_vp in right sub tree *)
                r_max: float; (* max dist to r_vp in right sub tree *)
                r_over: float; (* min dist to r_vp in left sub tree *)
-             (* sub-trees *)
+               (* sub-trees *)
                left: t;
                right: t }
          | Bucket of
              { vp: P.t; (* vantage point *)
-               dmin: float; (* min dist to vp among bucket points *)
-               dmax: float; (* max dist to vp among bucket points *)
-               bucket: P.t array (* points, ordered by incr. dist. to vp *) }
+               dmin: float; (* min dist to vp *)
+               dmax: float; (* max dist to vp *)
+               points: P.t array } (* remaining points (vp excluded),
+                                      ordered by incr. dist. to vp. *)
 
   let float_compare (x: float) (y: float): int =
     if x < y then -1

@@ -1,8 +1,8 @@
 (jbuild_version 1)
 
 (library
- ((name        vpt)
-  (public_name vpt)
+ ((name        bisec)
+  (public_name bisec)
   (modules (bisec_tree myArray))))
 
 (executable

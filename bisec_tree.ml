@@ -12,20 +12,33 @@ end
 
 module Make = functor (P: Point) -> struct
 
-  (* FBR: update *)
-  type node = { vp: P.t;
-                lb_low: float;
-                lb_high: float;
-                middle: float;
-                rb_low: float;
-                rb_high: float;
-                left: t;
-                right: t }
-  and t = Empty
-        | Node of node
+  (* The data structure is parametrized by k:
+     if there are n <= k points left, we put them
+     all in the same bucket. Else, we continue constructing
+     the tree recursively.
+     This should save storage space and accelerate queries.
+     The best value for k is probably dataset and application dependent. *)
 
-  let square (x: float): float =
-    x *. x
+  type t = Empty
+         | Branch of
+             { (* left half-space *)
+               l_vp: P.t; (* left vantage point *)
+               l_min: float; (* min dist to l_vp in left sub tree *)
+               l_max: float; (* max dist to l_vp in left sub tree *)
+               l_over: float; (* min dist to l_vp in right sub tree *)
+               (* right half-space *)
+               r_vp: P.t; (* right vantage point *)
+               r_min: float; (* min dist to r_vp in right sub tree *)
+               r_max: float; (* max dist to r_vp in right sub tree *)
+               r_over: float; (* min dist to r_vp in left sub tree *)
+             (* sub-trees *)
+               left: t;
+               right: t }
+         | Bucket of
+             { vp: P.t; (* vantage point *)
+               dmin: float; (* min dist to vp among bucket points *)
+               dmax: float; (* max dist to vp among bucket points *)
+               bucket: P.t array (* points, ordered by incr. dist. to vp *) }
 
   let float_compare (x: float) (y: float): int =
     if x < y then -1
@@ -60,24 +73,23 @@ module Make = functor (P: Point) -> struct
     | Some x -> x
     | None -> raise Not_found
 
-  let rec to_list = function
-      failwith "not implemented yet"
+  let rec to_list t =
+    failwith "not implemented yet"
 
   let neighbors query tol tree =
     failwith "not implemented yet"
 
   let is_empty = function
     | Empty -> true
-    | Node _ -> false
+    | _ -> false
 
-  let root = function
-    | Empty -> raise Not_found
-    | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } -> vp
+  let root t =
+    failwith "not implemented yet"
 
   (* test if the tree invariant holds.
      If it doesn't, then we are in trouble... *)
-  let rec check = function
-      failwith "not implemented yet"
+  let rec check t =
+    failwith "not implemented yet"
 
   exception Found of P.t
 

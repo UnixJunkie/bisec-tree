@@ -60,11 +60,16 @@ module Make = functor (P: Point) -> struct
      are inspired by section 4.2 'Selecting Split Points' in
      "Near Neighbor Search in Large Metric Spaces", Sergey Brin, VLDB 1995. *)
 
+  let float_compare (x: float) (y: float): int =
+    if x < y then -1
+    else if x > y then 1
+    else 0 (* x = y *)
+
   (* compare 'p1' and 'p2' by looking at their resp. distance to 'vp' *)
   let order_points vp p1 p2 =
     let d1 = P.dist vp p1 in
     let d2 = P.dist vp p2 in
-    compare d1 d2
+    float_compare d1 d2
 
   (* pseudo double normal: we look for a double normal,
      but we don't check we got one *)
@@ -94,25 +99,6 @@ module Make = functor (P: Point) -> struct
       Array.sort (order_points vp0) points;
       let vp1 = points.(n - 1) in
       (vp0, vp1)
-
-  let float_compare (x: float) (y: float): int =
-    if x < y then -1
-    else if x > y then 1
-    else 0 (* x = y *)
-
-  (* compute distance of point at index 'q_i' to all other points *)
-  let distances (q_i: int) (points: P.t array): float array =
-    let n = A.length points in
-    assert(n > 1);
-    let res = A.make (n - 1) 0.0 in
-    let j = ref 0 in
-    let q = points.(q_i) in
-    for i = 0 to n - 1 do
-      if i <> q_i then
-        (res.(!j) <- P.dist q points.(i);
-         incr j)
-    done;
-    res
 
   let select_vps (points: P.t array) =
     failwith "not implemented yet"

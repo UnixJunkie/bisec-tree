@@ -65,42 +65,56 @@ module Make = functor (P: Point) -> struct
     else if x > y then 1
     else 0 (* x = y *)
 
-  (* compare 'p1' and 'p2' by looking at their resp. distance to 'vp' *)
-  let order_points vp p1 p2 =
-    let d1 = P.dist vp p1 in
-    let d2 = P.dist vp p2 in
-    float_compare d1 d2
-
-  (* pseudo double normal: we look for a double normal,
-     but we don't check we got one *)
-  let very_good_vp_pair points =
+  (* select one vp randomly, then enrich the points with
+     their distance to this vp *)
+  let rand_vp points =
     let n = Array.length points in
-    assert(n >= 2);
-    if n = 2 then
-      (points.(0), points.(1))
+    assert(n > 0);
+    if n = 1 then
+      [|(points.(0), 0.0)|]
     else
       let i = rand_int n in
-      let vp0 = points.(i) in
-      Array.sort (order_points vp0) points;
-      let vp1 = points.(n - 1) in
-      Array.sort (order_points vp1) points;
-      let vp2 = points.(n - 1) in
-      (vp1, vp2)
+      let vp = points.(i) in
+      Array.map (fun p -> (p, P.dist vp p)) points
+
+  (* enrich points with their distance to given vp *)
+  let furthest_vp vp enr_points =
+    Array.map (fun (p, d0) -> (p, d0, P.dist vp p)) enr_points
+
+  let fst3 (a, _, _) = a
+  let snd3 (_, b, _) = b
+  let trd3 (_, _, c) = c
+
+  (* pseudo double normal: we look for a double normal,
+     but we don't check we actually found one *)
+  let very_good_vp_pair points =
+    (* FBR: code this one *)
+    failwith "not implemented yet"
 
   (* choose one vp randomly, the furthest point from it is the other vp *)
   let good_vp_pair points =
     let n = Array.length points in
     assert(n >= 2);
-    if n = 2 then
-      (points.(0), points.(1))
-    else
-      let i = rand_int n in
-      let vp0 = points.(i) in
-      Array.sort (order_points vp0) points;
-      let vp1 = points.(n - 1) in
-      (vp0, vp1)
+    let enr_points = rand_vp points in
+    Array.sort (fun x y ->
+        float_compare (snd x) (snd y)
+      ) enr_points;
+    let vp0 = fst enr_points.(n - 1) in
+    (* remove selected vp from points array *)
+    let enr_rem = A.sub enr_points 0 (n - 1) in
+    let enr_points_2 = furthest_vp vp0 enr_rem in
+    A.sort (fun x y ->
+        float_compare (trd3 x) (trd3 y)
+      ) enr_points_2;
+    let m = A.length enr_points_2 in
+    let vp1 = fst3 enr_points_2.(m - 1) in
+    let enr_points_3 = A.sub enr_points_2 0 (m - 1) in
+    (vp0, enr_points_3, vp1)
 
-  let select_vps (points: P.t array) =
+  let bisect (vp0, enr_points, vp1) =
+    failwith "not implemented yet"
+
+  let select_vps qual (points: P.t array) =
     failwith "not implemented yet"
 
   let create points =

@@ -75,7 +75,7 @@ module Make = functor (P: Point) -> struct
     else if x > y then 1
     else 0 (* x = y *)
 
-  (* point known by one vantage point *)
+  (* point indexed by one vantage point *)
   type point1 = { p: P.t;
                   d1: float }
   let point1_cmp x y =
@@ -83,7 +83,7 @@ module Make = functor (P: Point) -> struct
   (* enrich p by distance to vp *)
   let enr (vp: P.t) (p: P.t): point1 =
     { p; d1 = P.dist vp p }
-  (* point known by two vantage points *)
+  (* point indexed by two vantage points *)
   type point2 = { p: P.t;
                   d1: float;
                   d2: float }
@@ -115,16 +115,30 @@ module Make = functor (P: Point) -> struct
     let vp1 = enr_points.(0).p in
     let vp2 = enr_points.(n - 1).p in
     (* remove selected vps from points array
-       and enrich points by their distnce to vp2 *)
+       and enrich points by their dist to vp2 *)
     let enr_rem = A.sub enr_points 1 (n - 2) in
     let rem = Array.map (enr2 vp2) enr_rem in
     (vp1, rem, vp2)
 
   (* pseudo double normal: we look for a double normal,
-     but we don't check we actually found one *)
+     but we don't check if we actually got one *)
   let very_good_vp_pair points =
-    (* FBR: code this one *)
-    failwith "not implemented yet"
+    let n = Array.length points in
+    assert(n >= 2);
+    let enr_points = rand_vp points in
+    Array.sort point1_cmp enr_points;
+    (* furthest from random vp *)
+    let vp = enr_points.(n - 1).p in
+    let enr_points1 = Array.map (enr vp) points in
+    Array.sort point1_cmp enr_points1;
+    (* maybe double normal *)
+    let vp1 = enr_points1.(0).p in
+    let vp2 = enr_points1.(n - 1).p in
+    (* remove selected vps from points array
+       and enrich points by their distnce to vp2 *)
+    let enr_rem = A.sub enr_points1 1 (n - 2) in
+    let rem = Array.map (enr2 vp2) enr_rem in
+    (vp1, rem, vp2)
 
   let bisect (vp0, enr_points, vp1) =
     failwith "not implemented yet"

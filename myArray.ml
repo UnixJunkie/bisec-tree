@@ -17,13 +17,32 @@ let remove i a =
 
 (* <=> List.partition *)
 let partition p a =
-  let ok, ko =
-    fold_right (fun x (ok_acc, ko_acc) ->
-        if p x then (x :: ok_acc, ko_acc)
-        else (ok_acc, x :: ko_acc)
-      ) a ([], [])
-  in
-  (of_list ok, of_list ko)
+  let n = length a in
+  if n = 0 then ([||], [||])
+  else
+    let mask = make n false in
+    let ok_count = ref 0 in
+    iteri (fun i x ->
+        if p x then
+          (unsafe_set mask i true;
+           incr ok_count)
+      ) a;
+    let ko_count = n - !ok_count in
+    let init = unsafe_get a 0 in
+    let ok = make !ok_count init in
+    let ko = make ko_count init in
+    let j = ref 0 in
+    let k = ref 0 in
+    iteri (fun i px ->
+        let x = unsafe_get a i in
+        if px then
+          (unsafe_set ok !j x;
+           incr j)
+        else
+          (unsafe_set ko !k x;
+           incr k)
+      ) mask;
+    (ok, ko)
 
 (* <=> List.split *)
 let split a =

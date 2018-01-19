@@ -10,11 +10,15 @@ module type Point = sig
   val dist: t -> t -> float
 end
 
-module Make = functor (P: Point) -> struct
-
+module type Config = sig
+  val k: int (* bucket size *)
   type quality =
     | Very_good (* we use a heuristic to find good vp candidates *)
     | Good (* we use a cheaper heuristic to find good vp candidates *)
+  val q: quality
+end
+
+module Make = functor (P: Point) (C: Config) -> struct
 
   (* closed interval *)
   type itv = { inf: float ;
@@ -38,9 +42,6 @@ module Make = functor (P: Point) -> struct
                      ordered by incr. dist. to vp. *)
                   points: P.t array }
 
-  let new_bucket vp bounds points =
-    { vp; bounds; points }
-
   type node =
     { (* left half-space *)
       l_vp: P.t; (* left vantage point *)
@@ -57,6 +58,11 @@ module Make = functor (P: Point) -> struct
         | Node of node
         | Bucket of bucket
 
+  let new_bucket vp bounds points =
+    { vp; bounds; points }
+
+  (* FBR: I will need the itv_interect code *)
+
   let new_node l_vp l_in l_out r_vp r_in r_out left right =
     { l_vp; l_in; l_out; r_vp; r_in; r_out; left; right }
 
@@ -70,16 +76,22 @@ module Make = functor (P: Point) -> struct
      are inspired by section 4.2 'Selecting Split Points' in
      "Near Neighbor Search in Large Metric Spaces", Sergey Brin, VLDB 1995. *)
 
-  let float_compare (x: float) (y: float): int =
+  let fcmp (x: float) (y: float): int =
     if x < y then -1
     else if x > y then 1
     else 0 (* x = y *)
 
+  let fmin (x: float) (y: float): float =
+    if x < y then x else y
+
+  let fmax (x: float) (y: float): float =
+    if x > y then x else y
+
   (* point indexed by one vantage point *)
   type point1 = { p: P.t;
                   d1: float }
-  let point1_cmp x y =
-    float_compare x.d1 y.d1
+  let point1_cmp (x: point1) (y: point1): int =
+    fcmp x.d1 y.d1
   (* enrich p by distance to vp *)
   let enr (vp: P.t) (p: P.t): point1 =
     { p; d1 = P.dist vp p }
@@ -87,16 +99,40 @@ module Make = functor (P: Point) -> struct
   type point2 = { p: P.t;
                   d1: float;
                   d2: float }
-  let point2_cmp1 x y =
-    float_compare x.d1 y.d1
-  let point2_cmp2 x y =
-    float_compare x.d2 y.d2
+  let point2_cmp1 (x: point2) (y: point2): int =
+    fcmp x.d1 y.d1
+  let point2_cmp2 (x: point2) (y: point2): int =
+    fcmp x.d2 y.d2
   let enr2 (vp: P.t) (p: point1): point2 =
     { p = p.p; d1 = p.d1; d2 = P.dist vp p.p }
+  let strip2 (points: point2 array): P.t array =
+    A.map (fun x -> x.p) points
+  (* return dist bounds for vp1 and vp2 *)
+  let min_max12 (points: point2 array): itv * itv =
+    let min1 = ref points.(0).d1 in
+    let max1 = ref points.(0).d1 in
+    let min2 = ref points.(0).d2 in
+    let max2 = ref points.(0).d2 in
+    A.iter (fun x ->
+        min1 := fmin !min1 x.d1;
+        max1 := fmax !max1 x.d1;
+        min2 := fmin !min2 x.d2;
+        max2 := fmax !max2 x.d2
+      ) points;
+    (new_itv !min1 !max1, new_itv !min2 !max2)
+  (* return dist bounds for vp2 *)
+  let min_max2 (points: point2 array): itv =
+    let mini = ref points.(0).d2 in
+    let maxi = ref points.(0).d2 in
+    A.iter (fun x ->
+        mini := fmin !mini x.d2;
+        maxi := fmax !maxi x.d2
+      ) points;
+    new_itv !mini !maxi
 
   (* select first vp randomly, then enrich points
      by their distance to it *)
-  let rand_vp points =
+  let rand_vp (points: P.t array): point1 array =
     let n = Array.length points in
     assert(n > 0);
     if n = 1 then
@@ -107,7 +143,7 @@ module Make = functor (P: Point) -> struct
       Array.map (enr vp) points
 
   (* choose one vp randomly, the furthest point from it is the other vp *)
-  let good_vp_pair points =
+  let good_vp_pair (points: P.t array): P.t * point2 array * P.t =
     let n = Array.length points in
     assert(n >= 2);
     let enr_points = rand_vp points in
@@ -122,7 +158,7 @@ module Make = functor (P: Point) -> struct
 
   (* pseudo double normal: we look for a double normal,
      but we don't check if we actually got one *)
-  let very_good_vp_pair points =
+  let very_good_vp_pair (points: P.t array): P.t * point2 array * P.t =
     let n = Array.length points in
     assert(n >= 2);
     let enr_points = rand_vp points in
@@ -140,14 +176,33 @@ module Make = functor (P: Point) -> struct
     let rem = Array.map (enr2 vp2) enr_rem in
     (vp1, rem, vp2)
 
-  let bisect (vp0, enr_points, vp1) =
-    failwith "not implemented yet"
+  let heuristic = match C.q with
+    | Good -> good_vp_pair
+    | Very_good -> very_good_vp_pair
 
-  let select_vps qual (points: P.t array) =
-    failwith "not implemented yet"
+  let bucketize (_vp1, enr_points, vp2): bucket =
+    (* we use vp2 to index the bucket, because whatever the vp selection
+       heuristic, vp2 is supposed to be good while vp1 can be random *)
+    let bounds = min_max2 enr_points in
+    let points = strip2 enr_points in
+    new_bucket vp2 bounds points
 
-  let create points =
-    failwith "not implemented yet"
+  let rec create (points: P.t array): t =
+    let n = Array.length points in
+    if n = 0 then Empty
+    else
+      let enr_points = heuristic points in
+      if n <= C.k then Bucket (bucketize enr_points)
+      else
+        let l_vp, points', r_vp = enr_points in
+        (* points to the left are strictly closer to l_vp
+           than points to the right *)
+        let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) points' in
+        let l_in, r_out = min_max12 lpoints in
+        let l_out, r_in = min_max12 rpoints in
+        Node (new_node l_vp l_in l_out r_vp r_in r_out
+                (create (strip2 lpoints))
+                (create (strip2 rpoints)))
 
   let rec find_nearest acc query tree =
     failwith "not implemented yet"

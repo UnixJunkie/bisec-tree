@@ -18,11 +18,12 @@ end
 module type Config = sig
   val k: int (* bucket size *)
   type quality =
-    (* | Best (\* we use an exact algorithm to find the diameter
-                  of the point set *\) *)
-    | Very_good (* we use a heuristic to find good vp candidates *)
-    | Good (* we use a cheaper heuristic to find good vp candidates *)
-    (* | Random of int (\* we find a good pair by random sampling *\) *)
+    | Best (* we use brute force to find the diameter of the point set;
+              of course, this will not scale in case you have many points *)
+    | Good of int (* we use a heuristic to find good vp candidates;
+                     Good n => we will try to find a double normal using
+                     n optimization steps at most. Optim. stops as soon as a
+                     double normal is found. *)
   val q: quality
 end
 
@@ -79,10 +80,6 @@ module Make = functor (P: Point) (C: Config) -> struct
   (* n must be > 0 *)
   let rand_int n =
     Random.State.int rng n
-
-  (* the very good and good heuristic for choosing a good pair of vp points
-     are inspired by section 4.2 'Selecting Split Points' in
-     "Near Neighbor Search in Large Metric Spaces", Sergey Brin, VLDB 1995. *)
 
   let fcmp (x: float) (y: float): int =
     if x < y then -1
@@ -150,8 +147,12 @@ module Make = functor (P: Point) (C: Config) -> struct
       let vp = points.(i) in
       Array.map (enr vp) points
 
+  (* heuristics for choosing a good pair of vp points
+     are inspired by section 4.2 'Selecting Split Points' in
+     "Near Neighbor Search in Large Metric Spaces", Sergey Brin, VLDB 1995. *)
+
   (* choose one vp randomly, the furthest point from it is the other vp *)
-  let good_vp_pair (points: P.t array): P.t * point2 array * P.t =
+  let one_band (points: P.t array): P.t * point2 array * P.t =
     let n = Array.length points in
     assert(n >= 2);
     let enr_points = rand_vp points in
@@ -166,7 +167,7 @@ module Make = functor (P: Point) (C: Config) -> struct
 
   (* pseudo double normal: we look for a double normal,
      but we don't check if we actually got one *)
-  let very_good_vp_pair (points: P.t array): P.t * point2 array * P.t =
+  let two_bands (points: P.t array): P.t * point2 array * P.t =
     let n = Array.length points in
     assert(n >= 2);
     let enr_points = rand_vp points in
@@ -185,8 +186,10 @@ module Make = functor (P: Point) (C: Config) -> struct
     (vp1, rem, vp2)
 
   let heuristic = match C.q with
-    | Good -> good_vp_pair
-    | Very_good -> very_good_vp_pair
+    | Good 1 -> one_band
+    | Good 2 -> two_bands
+    | Good _ -> failwith "heuristic: not implemented yet: Good _"
+    | Best -> failwith "heuristic: not implemented yet: Best"
 
   let bucketize (_vp1, enr_points, vp2): bucket =
     (* we use vp2 to index the bucket, because whatever the vp selection

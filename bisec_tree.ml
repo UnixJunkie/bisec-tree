@@ -35,31 +35,9 @@ end
 
 module Make = functor (P: Point) (C: Config) -> struct
 
-  (* closed interval *)
-  type itv = { inf: float ;
-               sup: float }
-
-  let new_itv inf sup =
-    assert (inf <= sup);
-    { inf; sup }
-
-  let inside_itv itv x =
-    (x >= itv.inf && x <= itv.sup)
-
-  let itv_dont_overlap left right =
-    let a = left.inf in
-    let b = left.sup in
-    let c = right.inf in
-    let d = right.sup in
-    (* [a..b] [c..d] OR [c..d] [a..b] *)
-    (b < c) || (d < a)
-
-  let itv_overlap left right =
-    not (itv_dont_overlap left right)
-
   type bucket = { vp: P.t; (* vantage point *)
                   (* min and max dist to vp *)
-                  bounds: itv;
+                  bounds: Itv.t;
                   (* remaining points (vp excluded),
                      ordered by incr. dist. to vp. *)
                   points: P.t array }
@@ -67,12 +45,12 @@ module Make = functor (P: Point) (C: Config) -> struct
   type node =
     { (* left half-space *)
       l_vp: P.t; (* left vantage point *)
-      l_in: itv; (* dist bounds for points in the same half-space *)
-      l_out: itv; (* dist bounds for points in the other half-space *)
+      l_in: Itv.t; (* dist bounds for points in the same half-space *)
+      l_out: Itv.t; (* dist bounds for points in the other half-space *)
       (* right half-space *)
       r_vp: P.t; (* right vantage point *)
-      r_in: itv; (* dist bounds for points in the same half-space *)
-      r_out: itv; (* dist bounds for points in the other half-space *)
+      r_in: Itv.t; (* dist bounds for points in the same half-space *)
+      r_out: Itv.t; (* dist bounds for points in the other half-space *)
       (* sub-trees *)
       left: t;
       right: t }
@@ -126,7 +104,7 @@ module Make = functor (P: Point) (C: Config) -> struct
   let strip2 (points: point2 array): P.t array =
     A.map (fun x -> x.p) points
   (* return dist bounds for vp1 and vp2 *)
-  let min_max12 (points: point2 array): itv * itv =
+  let min_max12 (points: point2 array): Itv.t * Itv.t =
     let min1 = ref points.(0).d1 in
     let max1 = ref points.(0).d1 in
     let min2 = ref points.(0).d2 in
@@ -137,16 +115,16 @@ module Make = functor (P: Point) (C: Config) -> struct
         min2 := fmin !min2 x.d2;
         max2 := fmax !max2 x.d2
       ) points;
-    (new_itv !min1 !max1, new_itv !min2 !max2)
+    (Itv.make !min1 !max1, Itv.make !min2 !max2)
   (* return dist bounds for vp2 *)
-  let min_max2 (points: point2 array): itv =
+  let min_max2 (points: point2 array): Itv.t =
     let mini = ref points.(0).d2 in
     let maxi = ref points.(0).d2 in
     A.iter (fun x ->
         mini := fmin !mini x.d2;
         maxi := fmax !maxi x.d2
       ) points;
-    new_itv !mini !maxi
+    Itv.make !mini !maxi
 
   (* select first vp randomly, then enrich points
      by their distance to it *)

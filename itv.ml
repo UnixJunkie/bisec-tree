@@ -19,4 +19,4 @@ let dont_overlap left right =
   (b < c) || (d < a)
 
 let overlap left right =
-  not (itv_dont_overlap left right)
+  not (dont_overlap left right)

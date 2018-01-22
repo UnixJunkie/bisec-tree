@@ -84,3 +84,12 @@ let bootstrap_sample rng size a =
     unsafe_set res i (unsafe_get a rand)
   done;
   res
+
+(* filter 'a' from the left, as long as 'p' is true *)
+let filter_while p a =
+  let n = length a in
+  let i = ref 0 in
+  while !i < n && p (unsafe_get a !i) do
+    incr i
+  done;
+  sub a 0 !i

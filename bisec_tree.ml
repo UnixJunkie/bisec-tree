@@ -229,11 +229,26 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Some x -> x
     | None -> raise Not_found
 
-  let rec to_list t =
-    failwith "not implemented yet"
+  (* to_list with a nodes acc *)
+  let rec to_list_loop acc = function
+    | Empty -> acc
+    | Node n ->
+      let acc' = to_list_loop acc n.right in
+      to_list_loop (n.l_vp :: n.r_vp :: acc') n.left
+    | Bucket b ->
+      A.fold_left (fun acc' x ->
+          x :: acc'
+        ) (b.vp :: acc) b.points
+
+  let to_list t =
+    to_list_loop [] t
 
   let neighbors query tol tree =
-    failwith "not implemented yet"
+    let rec loop acc = function
+      | Empty -> acc
+      | Node n -> failwith "not implemented yet"
+      | Bucket b -> failwith "not implemented yet"
+    in loop [] tree
 
   let is_empty = function
     | Empty -> true

@@ -197,6 +197,7 @@ module Make = functor (P: Point) (C: Config) -> struct
     (* we use vp2 to index the bucket, because whatever the vp selection
        heuristic, vp2 is supposed to be good while vp1 can be random *)
     let bounds = min_max2 enr_points in
+    Array.sort point2_cmp2 enr_points; (* enforce correct sorting of points *)
     let points = strip2 enr_points in
     new_bucket vp2 bounds points
 

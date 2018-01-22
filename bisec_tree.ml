@@ -10,11 +10,19 @@ module type Point = sig
   val dist: t -> t -> float
 end
 
+(* Apparently, bisector trees where first describbed in
+   "A Data Structure and an Algorithm for the Nearest Point Problem";
+   Iraj Kalaranti and Gerard McDonald.
+   ieeexplore.ieee.org/iel5/32/35936/01703102.pdf *)
+
 module type Config = sig
   val k: int (* bucket size *)
   type quality =
+    (* | Best (\* we use an exact algorithm to find the diameter
+                  of the point set *\) *)
     | Very_good (* we use a heuristic to find good vp candidates *)
     | Good (* we use a cheaper heuristic to find good vp candidates *)
+    (* | Random of int (\* we find a good pair by random sampling *\) *)
   val q: quality
 end
 
@@ -61,9 +69,9 @@ module Make = functor (P: Point) (C: Config) -> struct
   let new_bucket vp bounds points =
     { vp; bounds; points }
 
-  (* FBR: I will need the itv_interect code *)
+  (* FBR: I will need the itv_intersect code *)
 
-  let new_node l_vp l_in l_out r_vp r_in r_out left right =
+  let new_node l_vp l_in l_out r_vp r_in r_out left right: node =
     { l_vp; l_in; l_out; r_vp; r_in; r_out; left; right }
 
   let rng = Random.State.make_self_init ()
@@ -222,8 +230,13 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Empty -> true
     | _ -> false
 
-  let root t =
-    failwith "not implemented yet"
+  (* the root is the first point in the vp that we find
+     not sure it is very useful, but at least it allows
+     to get one point from the tree
+ *)
+  let root = function
+    | Empty -> raise Not_found
+    | Node 
 
   (* test if the tree invariant holds.
      If it doesn't, then we are in trouble... *)
@@ -238,6 +251,4 @@ module Make = functor (P: Point) (C: Config) -> struct
   let mem query tree =
     failwith "not implemented yet"
 
-  let remove quality query tree =
-    failwith "not implemented yet"
 end

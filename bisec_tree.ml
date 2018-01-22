@@ -230,13 +230,13 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Empty -> true
     | _ -> false
 
-  (* the root is the first point in the vp that we find
+  (* the root is the first point in the vp that we find;
      not sure it is very useful, but at least it allows
-     to get one point from the tree
- *)
+     to get one point from the tree if it is not empty *)
   let root = function
     | Empty -> raise Not_found
-    | Node 
+    | Node n -> n.l_vp
+    | Bucket b -> b.vp
 
   (* test if the tree invariant holds.
      If it doesn't, then we are in trouble... *)

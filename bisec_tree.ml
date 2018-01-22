@@ -246,14 +246,23 @@ module Make = functor (P: Point) (C: Config) -> struct
       | Bucket b ->
         (* is vp near enough? *)
         let d = P.dist b.vp query in
-        let _acc' =
+        let acc' =
           if d <= tol then
             b.vp :: acc
           else
             acc in
         (* should we inspect the bucket? *)
-        failwith "not implemented yet"
-    in loop [] tree
+        let nearby_query = Itv.make (d -. tol) (d +. tol) in
+        if Itv.dont_overlap nearby_query b.bounds then acc'
+        else
+          A.fold_left (fun accu x ->
+              let d' = P.dist query x in
+              if d' <= tol then
+                x :: accu
+              else
+                accu
+            ) acc' b.points in
+    loop [] tree
 
   let is_empty = function
     | Empty -> true

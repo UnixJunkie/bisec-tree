@@ -151,7 +151,8 @@ module Make = functor (P: Point) (C: Config) -> struct
      are inspired by section 4.2 'Selecting Split Points' in
      "Near Neighbor Search in Large Metric Spaces", Sergey Brin, VLDB 1995. *)
 
-  (* choose one vp randomly, the furthest point from it is the other vp *)
+  (* choose one vp randomly, the furthest point from it is the other vp;
+     output is sorted according to l_vp *)
   let one_band (points: P.t array): P.t * point2 array * P.t =
     let n = Array.length points in
     assert(n >= 2);
@@ -166,7 +167,8 @@ module Make = functor (P: Point) (C: Config) -> struct
     (vp1, rem, vp2)
 
   (* pseudo double normal: we look for a double normal,
-     but we don't check if we actually got one *)
+     but we don't check if we actually got one;
+     output is sorted according to l_vp *)
   let two_bands (points: P.t array): P.t * point2 array * P.t =
     let n = Array.length points in
     assert(n >= 2);
@@ -209,6 +211,9 @@ module Make = functor (P: Point) (C: Config) -> struct
         (* points to the left are strictly closer to l_vp
            than points to the right *)
         let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) points' in
+        (* lpoints are sorted by incr. dist. to l_vp,
+           but rpoints need to be sorted by incr. dist. to r_vp *)
+        Array.sort point2_cmp2 rpoints;
         let l_in, r_out = min_max12 lpoints in
         let l_out, r_in = min_max12 rpoints in
         Node (new_node l_vp l_in l_out r_vp r_in r_out

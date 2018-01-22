@@ -238,11 +238,21 @@ module Make = functor (P: Point) (C: Config) -> struct
     let rec loop acc = function
       | Empty -> acc
       | Node n ->
-        (* is l_vp near enough *)
-        (* should we go left *)
-        (* is r_vp near enough *)
-        (* should we go right *)
-        failwith "not implemented yet"
+        (* is l_vp near enough? *)
+        let l_d = P.dist query n.l_vp in
+        let l_nearby_query = Itv.make (l_d -. tol) (l_d +. tol) in
+        let acc' = if l_d <= tol then n.l_vp :: acc else acc in
+        (* should we dive left? *)
+        let acc'' =
+          if Itv.dont_overlap l_nearby_query n.l_in then acc'
+          else loop acc' n.left in
+        (* is r_vp near enough? *)
+        let r_d = P.dist query n.r_vp in
+        let r_nearby_query = Itv.make (r_d -. tol) (r_d +. tol) in
+        let acc''' = if r_d <= tol then n.r_vp :: acc'' else acc'' in
+        (* should we dive right? *)
+        if Itv.dont_overlap r_nearby_query n.r_in then acc'''
+        else loop acc''' n.right
       | Bucket b ->
         (* is vp near enough? *)
         let d = P.dist b.vp query in

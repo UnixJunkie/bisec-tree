@@ -16,6 +16,12 @@ end
    ieeexplore.ieee.org/iel5/32/35936/01703102.pdf *)
 
 module type Config = sig
+  (* The data structure is parametrized by k:
+     if there are n <= k points left, we put them
+     all in the same bucket. Else, we continue constructing
+     the tree recursively.
+     This should save storage space and accelerate queries.
+     The best value for k is probably dataset and application dependent. *)
   val k: int (* bucket size *)
   type quality =
     | Best (* we use brute force to find the diameter of the point set;
@@ -37,12 +43,19 @@ module Make = functor (P: Point) (C: Config) -> struct
     assert (inf <= sup);
     { inf; sup }
 
-  (* The data structure is parametrized by k:
-     if there are n <= k points left, we put them
-     all in the same bucket. Else, we continue constructing
-     the tree recursively.
-     This should save storage space and accelerate queries.
-     The best value for k is probably dataset and application dependent. *)
+  let inside_itv itv x =
+    (x >= itv.inf && x <= itv.sup)
+
+  let itv_dont_overlap left right =
+    let a = left.inf in
+    let b = left.sup in
+    let c = right.inf in
+    let d = right.sup in
+    (* [a..b] [c..d] OR [c..d] [a..b] *)
+    (b < c) || (d < a)
+
+  let itv_overlap left right =
+    not (itv_dont_overlap left right)
 
   type bucket = { vp: P.t; (* vantage point *)
                   (* min and max dist to vp *)
@@ -246,8 +259,22 @@ module Make = functor (P: Point) (C: Config) -> struct
   let neighbors query tol tree =
     let rec loop acc = function
       | Empty -> acc
-      | Node n -> failwith "not implemented yet"
-      | Bucket b -> failwith "not implemented yet"
+      | Node n ->
+        (* is l_vp near enough *)
+        (* should we go left *)
+        (* is r_vp near enough *)
+        (* should we go right *)
+        failwith "not implemented yet"
+      | Bucket b ->
+        (* is vp near enough? *)
+        let d = P.dist b.vp query in
+        let _acc' =
+          if d <= tol then
+            b.vp :: acc
+          else
+            acc in
+        (* should we inspect the bucket? *)
+        failwith "not implemented yet"
     in loop [] tree
 
   let is_empty = function

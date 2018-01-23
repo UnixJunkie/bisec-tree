@@ -119,6 +119,17 @@ module Make = functor (P: Point) (C: Config) -> struct
       ) points;
     Itv.make !mini !maxi
 
+  (* stuff that will be promoted to bucket *)
+  type pre_bucket = { vp: P.t;
+                      points: point2 array }
+  (* stuff that will be promoted to node *)
+  type pre_node = { l_vp: P.t;
+                    points: point2 array;
+                    r_vp: P.t }
+  type pre = Pre_bucket of pre_bucket
+           | Pre_node of pre_node
+           | Pre_empty
+
   (* select first vp randomly, then enrich points
      by their distance to it *)
   let rand_vp (points: P.t array): point1 array =
@@ -137,53 +148,62 @@ module Make = functor (P: Point) (C: Config) -> struct
 
   (* choose one vp randomly, the furthest point from it is the other vp;
      output is sorted according to l_vp *)
-  let one_band (points: P.t array): P.t * point2 array * P.t =
+  let one_band (points: P.t array) =
     let n = Array.length points in
-    assert(n >= 2);
-    let enr_points = rand_vp points in
-    Array.sort point1_cmp enr_points;
-    let vp1 = enr_points.(0).p in
-    let vp2 = enr_points.(n - 1).p in
-    (* remove selected vps from points array
-       and enrich points by their dist to vp2 *)
-    let enr_rem = A.sub enr_points 1 (n - 2) in
-    let rem = Array.map (enr2 vp2) enr_rem in
-    (vp1, rem, vp2)
+    if n = 0 then Pre_empty
+    else
+      let enr_points = rand_vp points in
+      Array.sort point1_cmp enr_points;
+      let vp1 = enr_points.(0).p in
+      let vp2 = enr_points.(n - 1).p in
+      if n <= C.k then
+        (* we use vp2 to index the bucket: vp2 is supposed to be good
+           while vp1 is random *)
+        let enr_rem = A.sub enr_points 0 (n - 1) in
+        let rem = Array.map (enr2 vp2) enr_rem in
+        Pre_bucket { vp = vp2; points = rem }
+      else
+        (* remove selected vps from points array
+           and enrich points by their dist to vp2 *)
+        let enr_rem = A.sub enr_points 1 (n - 2) in
+        let rem = Array.map (enr2 vp2) enr_rem in
+        Pre_node { l_vp = vp1;
+                   points = rem;
+                   r_vp = vp2 }
 
   (* pseudo double normal: we look for a double normal,
      but we don't check if we actually got one;
      output is sorted according to l_vp *)
-  let two_bands (points: P.t array): P.t * point2 array * P.t =
+  let two_bands (points: P.t array) =
     let n = Array.length points in
-    assert(n >= 2);
-    let enr_points = rand_vp points in
-    Array.sort point1_cmp enr_points;
-    (* furthest from random vp *)
-    let vp = enr_points.(n - 1).p in
-    let enr_points1 = Array.map (enr vp) points in
-    Array.sort point1_cmp enr_points1;
-    (* maybe double normal *)
-    let vp1 = enr_points1.(0).p in
-    let vp2 = enr_points1.(n - 1).p in
-    (* remove selected vps from points array
-       and enrich points by their distnce to vp2 *)
-    let enr_rem = A.sub enr_points1 1 (n - 2) in
-    let rem = Array.map (enr2 vp2) enr_rem in
-    (vp1, rem, vp2)
+    if n = 0 then Pre_empty
+    else
+      let enr_points = rand_vp points in
+      Array.sort point1_cmp enr_points;
+      (* furthest from random vp *)
+      let vp = enr_points.(n - 1).p in
+      let enr_points1 = Array.map (enr vp) points in
+      Array.sort point1_cmp enr_points1;
+      (* maybe double normal *)
+      let vp1 = enr_points1.(0).p in
+      let vp2 = enr_points1.(n - 1).p in
+      if n <= C.k then
+        (* we use vp2 to index the bucket *)
+        let enr_rem = A.sub enr_points 0 (n - 1) in
+        let rem = Array.map (enr2 vp2) enr_rem in
+        Pre_bucket { vp = vp2; points = rem }
+      else
+        (* remove selected vps from points array
+           and enrich points by their distance to vp2 *)
+        let enr_rem = A.sub enr_points1 1 (n - 2) in
+        let rem = Array.map (enr2 vp2) enr_rem in
+        Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
 
   let heuristic = match C.q with
     | Good 1 -> one_band
     | Good 2 -> two_bands
     | Good _ -> failwith "heuristic: not implemented yet: Good _"
     | Best -> failwith "heuristic: not implemented yet: Best"
-
-  let bucketize (_vp1, enr_points, vp2): bucket =
-    (* we use vp2 to index the bucket, because whatever the vp selection
-       heuristic, vp2 is supposed to be good while vp1 can be random *)
-    let bounds = min_max2 enr_points in
-    Array.sort point2_cmp2 enr_points; (* enforce correct sorting of points *)
-    let points = strip2 enr_points in
-    new_bucket vp2 bounds points
 
   (* sample distances between all distinct points in a sample.
      The result is sorted. *)
@@ -202,25 +222,25 @@ module Make = functor (P: Point) (C: Config) -> struct
     A.sort fcmp distances;
     distances
 
+  (* FBR: check all calls to sort; some are not necessary *)
+
   let rec create (points: P.t array): t =
-    let n = Array.length points in
-    if n = 0 then Empty
-    else
-      let enr_points = heuristic points in
-      if n <= C.k then Bucket (bucketize enr_points)
-      else
-        let l_vp, points', r_vp = enr_points in
-        (* points to the left are strictly closer to l_vp
-           than points to the right *)
-        let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) points' in
-        (* lpoints are sorted by incr. dist. to l_vp,
-           but rpoints need to be sorted by incr. dist. to r_vp *)
-        Array.sort point2_cmp2 rpoints;
-        let l_in = min_max1 lpoints in
-        let r_in = min_max2 rpoints in
-        Node (new_node l_vp l_in r_vp r_in
-                (create (strip2 lpoints))
-                (create (strip2 rpoints)))
+    match heuristic points with
+    | Pre_empty -> Empty
+    | Pre_bucket b ->
+      Bucket (new_bucket b.vp (min_max2 b.points) (strip2 b.points))
+    | Pre_node pn ->
+      (* points to the left are strictly closer to l_vp
+         than points to the right *)
+      let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
+      (* lpoints are sorted by incr. dist. to l_vp,
+         but rpoints need to be sorted by incr. dist. to r_vp *)
+      Array.sort point2_cmp2 rpoints;
+      let l_in = min_max1 lpoints in
+      let r_in = min_max2 rpoints in
+      Node (new_node pn.l_vp l_in pn.r_vp r_in
+              (create (strip2 lpoints))
+              (create (strip2 rpoints)))
 
   (* to_list with a nodes acc *)
   let rec to_list_loop acc = function

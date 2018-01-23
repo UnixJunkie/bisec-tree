@@ -186,6 +186,23 @@ module Make = functor (P: Point) (C: Config) -> struct
     let points = strip2 enr_points in
     new_bucket vp2 bounds points
 
+  (* sample distances between pair of points in a sample.
+     The result is sorted. *)
+  let sample_distances (sample_size: int) (points: P.t array): float array =
+    let n = A.length points in
+    (* draw with replacement *)
+    let sample = A.init sample_size (fun _ -> points.(Random.int n)) in
+    let distances = A.make (sample_size * (sample_size - 1) / 2) 0.0 in
+    let k = ref 0 in
+    for i = 0 to sample_size - 2 do
+      for j = i + 1 to sample_size - 1 do
+        distances.(!k) <- P.dist sample.(i) sample.(j);
+        incr k
+      done;
+    done;
+    A.sort fcmp distances;
+    distances
+
   let rec create (points: P.t array): t =
     let n = Array.length points in
     if n = 0 then Empty

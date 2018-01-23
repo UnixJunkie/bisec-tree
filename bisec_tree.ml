@@ -46,13 +46,9 @@ module Make = functor (P: Point) (C: Config) -> struct
     { (* left half-space *)
       l_vp: P.t; (* left vantage point *)
       l_in: Itv.t; (* dist bounds for points in the same half-space *)
-      (* FBR: remove l_out *)
-      l_out: Itv.t; (* dist bounds for points in the other half-space *)
       (* right half-space *)
       r_vp: P.t; (* right vantage point *)
       r_in: Itv.t; (* dist bounds for points in the same half-space *)
-      (* FBR: remove r_out *)
-      r_out: Itv.t; (* dist bounds for points in the other half-space *)
       (* sub-trees *)
       left: t;
       right: t }
@@ -65,8 +61,8 @@ module Make = functor (P: Point) (C: Config) -> struct
 
   (* FBR: I will need the itv_intersect code *)
 
-  let new_node l_vp l_in l_out r_vp r_in r_out left right: node =
-    { l_vp; l_in; l_out; r_vp; r_in; r_out; left; right }
+  let new_node l_vp l_in r_vp r_in left right: node =
+    { l_vp; l_in; r_vp; r_in; left; right }
 
   let rng = Random.State.make_self_init ()
 
@@ -105,19 +101,15 @@ module Make = functor (P: Point) (C: Config) -> struct
     { p = p.p; d1 = p.d1; d2 = P.dist vp p.p }
   let strip2 (points: point2 array): P.t array =
     A.map (fun x -> x.p) points
-  (* return dist bounds for vp1 and vp2 *)
-  let min_max12 (points: point2 array): Itv.t * Itv.t =
-    let min1 = ref points.(0).d1 in
-    let max1 = ref points.(0).d1 in
-    let min2 = ref points.(0).d2 in
-    let max2 = ref points.(0).d2 in
+  (* return dist bounds for vp1 *)
+  let min_max1 (points: point2 array): Itv.t =
+    let mini = ref points.(0).d1 in
+    let maxi = ref points.(0).d1 in
     A.iter (fun x ->
-        min1 := fmin !min1 x.d1;
-        max1 := fmax !max1 x.d1;
-        min2 := fmin !min2 x.d2;
-        max2 := fmax !max2 x.d2
+        mini := fmin !mini x.d1;
+        maxi := fmax !maxi x.d1
       ) points;
-    (Itv.make !min1 !max1, Itv.make !min2 !max2)
+    Itv.make !mini !maxi
   (* return dist bounds for vp2 *)
   let min_max2 (points: point2 array): Itv.t =
     let mini = ref points.(0).d2 in
@@ -208,9 +200,9 @@ module Make = functor (P: Point) (C: Config) -> struct
         (* lpoints are sorted by incr. dist. to l_vp,
            but rpoints need to be sorted by incr. dist. to r_vp *)
         Array.sort point2_cmp2 rpoints;
-        let l_in, r_out = min_max12 lpoints in
-        let l_out, r_in = min_max12 rpoints in
-        Node (new_node l_vp l_in l_out r_vp r_in r_out
+        let l_in = min_max1 lpoints in
+        let r_in = min_max2 rpoints in
+        Node (new_node l_vp l_in r_vp r_in
                 (create (strip2 lpoints))
                 (create (strip2 rpoints)))
 

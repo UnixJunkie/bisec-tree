@@ -280,7 +280,8 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Empty -> true
     | _ -> false
 
-  (* the root is the first point in the vp that we find;
+  (* the root is the first point in the vp that we find
+     (either a bucket's vp or a node's left vp);
      not sure it is very useful, but at least it allows
      to get one point from the tree if it is not empty *)
   let root = function
@@ -289,9 +290,25 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Bucket b -> b.vp
 
   (* test if the tree invariant holds.
-     If it doesn't, then we are in trouble... *)
-  let rec check t =
-    failwith "not implemented yet"
+     If it doesn't, we are in trouble... *)
+  let rec check = function
+    | Empty -> true
+    | Bucket b -> (* check bounds *)
+      A.for_all (fun x ->
+          let d = P.dist b.vp x in
+          Itv.is_inside b.bounds d
+        ) b.points
+    | Node n -> (* check bounds *)
+      L.for_all (fun x -> (* lbounds *)
+          let d = P.dist n.l_vp x in
+          Itv.is_inside n.l_in d
+        ) (to_list n.left) &&
+      L.for_all (fun x -> (* rbounds *)
+          let d = P.dist n.r_vp x in
+          Itv.is_inside n.r_in d
+        ) (to_list n.right) &&
+      (* check left then right *)
+      check n.left && check n.right
 
   exception Found of P.t
 

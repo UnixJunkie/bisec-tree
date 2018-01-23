@@ -46,10 +46,12 @@ module Make = functor (P: Point) (C: Config) -> struct
     { (* left half-space *)
       l_vp: P.t; (* left vantage point *)
       l_in: Itv.t; (* dist bounds for points in the same half-space *)
+      (* FBR: remove l_out *)
       l_out: Itv.t; (* dist bounds for points in the other half-space *)
       (* right half-space *)
       r_vp: P.t; (* right vantage point *)
       r_in: Itv.t; (* dist bounds for points in the same half-space *)
+      (* FBR: remove r_out *)
       r_out: Itv.t; (* dist bounds for points in the other half-space *)
       (* sub-trees *)
       left: t;
@@ -294,9 +296,35 @@ module Make = functor (P: Point) (C: Config) -> struct
   exception Found of P.t
 
   let find query tree =
-    failwith "not implemented yet"
+    let rec loop = function
+      | Empty -> ()
+      | Bucket b ->
+        let d = P.dist b.vp query in
+        if d = 0.0 then raise (Found b.vp)
+        else if Itv.is_inside b.bounds d then
+          (* inspect bucket *)
+          A.iter (fun x ->
+              if P.dist query x = 0.0 then
+                raise (Found x)
+            ) b.points
+        else () (* no need to check bucket further *)
+      | Node n ->
+        begin
+          let l_d = P.dist n.l_vp query in
+          if l_d = 0.0 then raise (Found n.l_vp)
+          else if Itv.is_inside n.l_in l_d then
+            loop n.left;
+          let r_d = P.dist n.r_vp query in
+          if r_d = 0.0 then raise (Found n.r_vp)
+          else if Itv.is_inside n.r_in r_d then
+            loop n.right
+        end
+    in
+    try (loop tree; raise Not_found)
+    with Found x -> x
 
   let mem query tree =
-    failwith "not implemented yet"
+    try let _ = find query tree in true
+    with Not_found -> false
 
 end

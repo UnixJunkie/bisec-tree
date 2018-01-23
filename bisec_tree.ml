@@ -233,6 +233,19 @@ module Make = functor (P: Point) (C: Config) -> struct
           x :: acc'
         ) (b.vp :: acc) b.points
 
+  let incr_by r n =
+    r := !r + n
+
+  (* count number of points in the tree, for debugging *)
+  let count tree =
+    let res = ref 0 in
+    let rec loop = function
+      | Empty -> ()
+      | Bucket b -> incr_by res (A.length b.points + 1)
+      | Node n -> (incr_by res 2; loop n.left; loop n.right) in
+    loop tree;
+    !res
+
   let to_list t =
     to_list_loop [] t
 

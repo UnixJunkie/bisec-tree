@@ -59,8 +59,6 @@ module Make = functor (P: Point) (C: Config) -> struct
   let new_bucket vp bounds points =
     { vp; bounds; points }
 
-  (* FBR: I will need the itv_intersect code *)
-
   let new_node l_vp l_in r_vp r_in left right: node =
     { l_vp; l_in; r_vp; r_in; left; right }
 
@@ -186,7 +184,7 @@ module Make = functor (P: Point) (C: Config) -> struct
     let points = strip2 enr_points in
     new_bucket vp2 bounds points
 
-  (* sample distances between pair of points in a sample.
+  (* sample distances between all distinct points in a sample.
      The result is sorted. *)
   let sample_distances (sample_size: int) (points: P.t array): float array =
     let n = A.length points in
@@ -222,14 +220,6 @@ module Make = functor (P: Point) (C: Config) -> struct
         Node (new_node l_vp l_in r_vp r_in
                 (create (strip2 lpoints))
                 (create (strip2 rpoints)))
-
-  let rec find_nearest acc query tree =
-    failwith "not implemented yet"
-
-  let nearest_neighbor query tree =
-    match find_nearest None query tree with
-    | Some x -> x
-    | None -> raise Not_found
 
   (* to_list with a nodes acc *)
   let rec to_list_loop acc = function
@@ -297,6 +287,44 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Empty -> raise Not_found
     | Node n -> n.l_vp
     | Bucket b -> b.vp
+
+  (* FBR: reread code for correctness Vs.
+     which side of the sub-tree must be visited *)
+
+  let nearest_neighbor query tree =
+    let rec loop ((x, d) as acc) = function
+      | Empty -> acc
+      | Bucket b ->
+        let b_d = P.dist query b.vp in
+        let x', d' = if b_d < d then (b.vp, b_d) else acc in
+        let b_itv = Itv.make (b_d -. d') (b_d +. d') in
+        (* should we inspect bucket points? *)
+        if Itv.dont_overlap b_itv b.bounds then (x', d')
+        else
+          A.fold_left (fun ((nearest_p, nearest_d) as acc') x ->
+              let x_d = P.dist query x in
+              if x_d < nearest_d then (x, x_d) else acc'
+            ) (x', d') b.points
+      | Node n ->
+        let l_d = P.dist query n.l_vp in
+        let x', d' = if l_d < d then (n.l_vp, l_d) else acc in
+        let l_itv = Itv.make (l_d -. d') (l_d +. d') in
+        (* should we dive left? *)
+        let x'', d'' =
+          if Itv.dont_overlap l_itv n.l_in then (x', d')
+          else loop (x', d') n.left in
+        (* should we dive right? *)
+        let r_d = P.dist query n.r_vp in
+        let x''', d''' = if r_d < d'' then (n.r_vp, r_d) else (x'', d'') in
+        let r_itv = Itv.make (r_d -. d''') (r_d +. d''') in
+        if Itv.dont_overlap r_itv n.r_in then (x''', d''')
+        else loop (x''', d''') n.right in
+    match tree with
+    | Empty -> raise Not_found
+    | not_empty ->
+      let x = root not_empty in
+      let nearest = (x, P.dist query x) in
+      loop nearest not_empty
 
   (* test if the tree invariant holds.
      If it doesn't, we are in trouble... *)

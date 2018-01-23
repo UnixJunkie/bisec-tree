@@ -7,4 +7,4 @@
 
 (executable
  ((name        test)
-  (libraries (unix))))
+  (libraries (unix dolog))))

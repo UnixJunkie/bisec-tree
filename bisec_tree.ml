@@ -43,6 +43,8 @@ module Make = functor (P: Point) (C: Config) -> struct
                      ordered by incr. dist. to vp. *)
                   points: P.t array }
 
+  (* FBR: we might not need intervals at all, only the upper bound *)
+
   type node =
     { (* left half-space *)
       l_vp: P.t; (* left vantage point *)
@@ -130,30 +132,29 @@ module Make = functor (P: Point) (C: Config) -> struct
            | Pre_node of pre_node
            | Pre_empty
 
-  (* select first vp randomly, then enrich points
-     by their distance to it *)
+  (* select first vp randomly, then enrich points by their distance to it;
+     output is ordered by incr. dist. to this rand vp *)
   let rand_vp (points: P.t array): point1 array =
     let n = Array.length points in
     assert(n > 0);
-    if n = 1 then
-      [|{ p = points.(0); d1 = 0.0 }|]
+    if n = 1 then [|{ p = points.(0); d1 = 0.0 }|]
     else
       let i = rand_int n in
       let vp = points.(i) in
-      Array.map (enr vp) points
+      let enr_points = Array.map (enr vp) points in
+      Array.sort point1_cmp enr_points;
+      enr_points
 
   (* heuristics for choosing a good pair of vp points
      are inspired by section 4.2 'Selecting Split Points' in
      "Near Neighbor Search in Large Metric Spaces", Sergey Brin, VLDB 1995. *)
 
-  (* choose one vp randomly, the furthest point from it is the other vp;
-     output is sorted according to l_vp *)
+  (* choose one vp randomly, the furthest point from it is the other vp *)
   let one_band (points: P.t array) =
     let n = Array.length points in
     if n = 0 then Pre_empty
     else
       let enr_points = rand_vp points in
-      Array.sort point1_cmp enr_points;
       let vp1 = enr_points.(0).p in
       let vp2 = enr_points.(n - 1).p in
       if n <= C.k then
@@ -167,9 +168,7 @@ module Make = functor (P: Point) (C: Config) -> struct
            and enrich points by their dist to vp2 *)
         let enr_rem = A.sub enr_points 1 (n - 2) in
         let rem = Array.map (enr2 vp2) enr_rem in
-        Pre_node { l_vp = vp1;
-                   points = rem;
-                   r_vp = vp2 }
+        Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
 
   (* pseudo double normal: we look for a double normal,
      but we don't check if we actually got one;
@@ -179,7 +178,6 @@ module Make = functor (P: Point) (C: Config) -> struct
     if n = 0 then Pre_empty
     else
       let enr_points = rand_vp points in
-      Array.sort point1_cmp enr_points;
       (* furthest from random vp *)
       let vp = enr_points.(n - 1).p in
       let enr_points1 = Array.map (enr vp) points in
@@ -189,7 +187,7 @@ module Make = functor (P: Point) (C: Config) -> struct
       let vp2 = enr_points1.(n - 1).p in
       if n <= C.k then
         (* we use vp2 to index the bucket *)
-        let enr_rem = A.sub enr_points 0 (n - 1) in
+        let enr_rem = A.sub enr_points1 0 (n - 1) in
         let rem = Array.map (enr2 vp2) enr_rem in
         Pre_bucket { vp = vp2; points = rem }
       else
@@ -324,34 +322,30 @@ module Make = functor (P: Point) (C: Config) -> struct
       | Bucket b ->
         let b_d = P.dist query b.vp in
         let x', d' = if b_d < d then (b.vp, b_d) else acc in
-        let b_itv = Itv.make (b_d -. d') (b_d +. d') in
         (* should we inspect bucket points? *)
-        if Itv.dont_overlap b_itv b.bounds then (x', d')
-        else
-          A.fold_left (fun ((nearest_p, nearest_d) as acc') x ->
-              let x_d = P.dist query x in
-              if x_d < nearest_d then (x, x_d) else acc'
+        if b_d -. b.bounds.sup >= d' then (x', d') (* no *)
+        else (* yes *)
+          A.fold_left (fun (nearest_p, nearest_d) y ->
+              let y_d = P.dist query y in
+              if y_d < nearest_d then (y, y_d) else (nearest_p, nearest_d)
             ) (x', d') b.points
       | Node n ->
         let l_d = P.dist query n.l_vp in
         let x', d' = if l_d < d then (n.l_vp, l_d) else acc in
-        let l_itv = Itv.make (l_d -. d') (l_d +. d') in
         (* should we dive left? *)
         let x'', d'' =
-          if Itv.dont_overlap l_itv n.l_in then (x', d')
-          else loop (x', d') n.left in
+          if l_d -. n.l_in.sup >= d' then (x', d') (* no *)
+          else loop (x', d') n.left (* yes *) in
         (* should we dive right? *)
         let r_d = P.dist query n.r_vp in
         let x''', d''' = if r_d < d'' then (n.r_vp, r_d) else (x'', d'') in
-        let r_itv = Itv.make (r_d -. d''') (r_d +. d''') in
-        if Itv.dont_overlap r_itv n.r_in then (x''', d''')
-        else loop (x''', d''') n.right in
+        if r_d -. n.r_in.sup >= d''' then (x''', d''') (* no *)
+        else loop (x''', d''') n.right (* yes *) in
     match tree with
     | Empty -> raise Not_found
     | not_empty ->
       let x = root not_empty in
-      let nearest = (x, P.dist query x) in
-      loop nearest not_empty
+      loop (x, P.dist query x) not_empty
 
   (* test if the tree invariant holds.
      If it doesn't, we are in trouble... *)
@@ -374,35 +368,10 @@ module Make = functor (P: Point) (C: Config) -> struct
       (* check left then right *)
       check n.left && check n.right
 
-  exception Found of P.t
-
   let find query tree =
-    let rec loop = function
-      | Empty -> ()
-      | Bucket b ->
-        let d = P.dist b.vp query in
-        if d = 0.0 then raise (Found b.vp)
-        else if Itv.is_inside b.bounds d then
-          (* inspect bucket *)
-          A.iter (fun x ->
-              if P.dist query x = 0.0 then
-                raise (Found x)
-            ) b.points
-        else () (* no need to check bucket further *)
-      | Node n ->
-        begin
-          let l_d = P.dist n.l_vp query in
-          if l_d = 0.0 then raise (Found n.l_vp)
-          else if Itv.is_inside n.l_in l_d then
-            loop n.left;
-          let r_d = P.dist n.r_vp query in
-          if r_d = 0.0 then raise (Found n.r_vp)
-          else if Itv.is_inside n.r_in r_d then
-            loop n.right
-        end
-    in
-    try (loop tree; raise Not_found)
-    with Found x -> x
+    let nearest_p, nearest_d = nearest_neighbor query tree in
+    (* Log.warn "nearest_d: %f" nearest_d; *)
+    if nearest_d = 0.0 then nearest_p else raise Not_found
 
   let mem query tree =
     try let _ = find query tree in true

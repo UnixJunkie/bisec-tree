@@ -39,13 +39,27 @@ let array_to_file fn to_string a =
       A.iter (fun x -> fprintf out "%s\n" (to_string x)) a
     )
 
+(* nearest neighbor brute force search *)
+let nearest_brute_force query points =
+  let dists = A.map (fun p -> (p, P.dist query p)) points in
+  A.sort (fun (p1, d1) (p2, d2) -> compare d1 d2) dists;
+  dists.(0)
+
+(* all neighbors within [tol] of [query] using brute force *)
+let neighbors_brute_force query tol points =
+  let res = ref [] in
+  A.iter (fun p -> if P.dist p query <= tol then res := p :: !res) points;
+  !res
+
 let main () =
   Log.color_on ();
-  Log.set_log_level Log.DEBUG;
+  Log.set_log_level Log.INFO;
   (* N rand points *)
   let nb_points = 1000 in
   let points = A.init nb_points (fun _ -> P.rand ()) in
   let tree = BST.create points in
+  let points' = A.init nb_points (fun _ -> P.rand ()) in
+  let tree' = BST.create points' in
   (* check tree invariant *)
   assert(BST.check tree);
   let dists = BST.sample_distances (nb_points / 10) points in
@@ -63,8 +77,32 @@ let main () =
            Log.error "not found: %f %f" x y;
          found
       ) points
+  );
+  (* test neighbors queries *)
+  assert(
+    A.for_all
+      (fun ((x, y) as p) ->
+         let tol = Random.State.float rng 1.0 in
+         let brute_points = neighbors_brute_force p tol points in
+         let smart_points = BST.neighbors p tol tree in
+         Log.debug "tol: %f card: %d" tol (L.length smart_points);
+         L.sort compare brute_points = L.sort compare smart_points
+      ) points
+  );
+  (* test nearest neighbor queries *)
+  assert(
+    A.for_all
+      (fun p ->
+         let brute_points = nearest_brute_force p points' in
+         let smart_points = BST.nearest_neighbor p tree' in
+         let p', d' = smart_points in
+         Log.debug "d': %f" d';
+         brute_points = smart_points
+      ) points
   )
-  (* neighbors *)
-  (* nearest_neighbor *)
+
+(* FBR: test nearest_neighbor queries against brute force *)
+(* time construction of tree for many points Vs heuristic *)
+(* time queries vs brute force *)
 
 let () = main ()

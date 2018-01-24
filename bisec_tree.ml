@@ -238,19 +238,6 @@ module Make = functor (P: Point) (C: Config) -> struct
           x :: acc'
         ) (b.vp :: acc) b.points
 
-  let incr_by r n =
-    r := !r + n
-
-  (* count number of points in the tree, for debugging *)
-  let count tree =
-    let res = ref 0 in
-    let rec loop = function
-      | Empty -> ()
-      | Bucket b -> incr_by res (A.length b.points + 1)
-      | Node n -> (incr_by res 2; loop n.left; loop n.right) in
-    loop tree;
-    !res
-
   let to_list t =
     to_list_loop [] t
 
@@ -346,6 +333,17 @@ module Make = functor (P: Point) (C: Config) -> struct
         ) (to_list n.right) &&
       (* check left then right *)
       check n.left && check n.right
+
+  (* extract vp points from the tree *)
+  let inspect tree =
+    let rec loop acc = function
+      | Empty -> acc
+      | Bucket b -> b.vp :: acc
+      | Node n ->
+        let acc' = n.l_vp :: n.r_vp :: acc in
+        let acc'' = loop acc' n.left in
+        loop acc'' n.right in
+    loop [] tree
 
   let find query tree =
     let nearest_p, nearest_d = nearest_neighbor query tree in

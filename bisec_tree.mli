@@ -89,4 +89,8 @@ sig
       If invariant doesn't hold, then this library has a bug
       or your [P.dist] function is not a proper metric. *)
   val check: t -> bool
+
+  (** [inspect bst] extract the vantage points of [bst]
+      in an unspecified order. *)
+  val inspect: t -> P.t list
 end

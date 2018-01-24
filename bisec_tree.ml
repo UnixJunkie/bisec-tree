@@ -160,8 +160,7 @@ module Make = functor (P: Point) (C: Config) -> struct
         Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
 
   (* pseudo double normal: we look for a double normal,
-     but we don't check if we actually got one;
-     output is sorted according to l_vp *)
+     but we don't check if we actually got one *)
   let two_bands (points: P.t array) =
     let n = Array.length points in
     if n = 0 then Pre_empty

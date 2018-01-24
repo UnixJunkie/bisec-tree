@@ -12,7 +12,7 @@ install: all
 
 doc:
 	mkdir -p doc
-	ocamldoc -html -o doc/bisec_tree bisec_tree.mli
+	ocamldoc -html -d doc bisec_tree.mli
 
 uninstall:
 	jbuilder uninstall

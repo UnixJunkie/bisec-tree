@@ -37,33 +37,22 @@ end
 module Make = functor (P: Point) (C: Config) -> struct
 
   type bucket = { vp: P.t; (* vantage point *)
-                  (* min and max dist to vp *)
-                  bounds: Itv.t;
-                  (* remaining points (vp excluded),
-                     ordered by incr. dist. to vp. *)
-                  points: P.t array }
-
-  (* FBR: we might not need intervals at all, only the upper bound *)
+                  sup: float; (* max dist to vp among bucket points *)
+                  points: P.t array } (* remaining points (vp excluded) *)
 
   type node =
     { (* left half-space *)
       l_vp: P.t; (* left vantage point *)
-      l_in: Itv.t; (* dist bounds for points in the same half-space *)
+      l_sup: float; (* max dist to l_vp among points in same half-space *)
       (* right half-space *)
       r_vp: P.t; (* right vantage point *)
-      r_in: Itv.t; (* dist bounds for points in the same half-space *)
+      r_sup: float; (* max dist to r_vp among points in same half-space *)
       (* sub-trees *)
       left: t;
       right: t }
   and t = Empty
         | Node of node
         | Bucket of bucket
-
-  let new_bucket vp bounds points =
-    { vp; bounds; points }
-
-  let new_node l_vp l_in r_vp r_in left right: node =
-    { l_vp; l_in; r_vp; r_in; left; right }
 
   let rng = Random.State.make_self_init ()
 
@@ -102,24 +91,20 @@ module Make = functor (P: Point) (C: Config) -> struct
     { p = p.p; d1 = p.d1; d2 = P.dist vp p.p }
   let strip2 (points: point2 array): P.t array =
     A.map (fun x -> x.p) points
-  (* return dist bounds for vp1 *)
-  let min_max1 (points: point2 array): Itv.t =
-    let mini = ref points.(0).d1 in
+  (* return max dist to vp1 *)
+  let max1 (points: point2 array): float =
     let maxi = ref points.(0).d1 in
     A.iter (fun x ->
-        mini := fmin !mini x.d1;
         maxi := fmax !maxi x.d1
       ) points;
-    Itv.make !mini !maxi
-  (* return dist bounds for vp2 *)
-  let min_max2 (points: point2 array): Itv.t =
-    let mini = ref points.(0).d2 in
+    !maxi
+  (* return max dist to vp2 *)
+  let max2 (points: point2 array): float =
     let maxi = ref points.(0).d2 in
     A.iter (fun x ->
-        mini := fmin !mini x.d2;
         maxi := fmax !maxi x.d2
       ) points;
-    Itv.make !mini !maxi
+    !maxi
 
   (* stuff that will be promoted to bucket *)
   type pre_bucket = { vp: P.t;
@@ -224,16 +209,17 @@ module Make = functor (P: Point) (C: Config) -> struct
     match heuristic points with
     | Pre_empty -> Empty
     | Pre_bucket b ->
-      Bucket (new_bucket b.vp (min_max2 b.points) (strip2 b.points))
+      Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
     | Pre_node pn ->
       (* points to the left are strictly closer to l_vp
          than points to the right *)
       let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
-      let l_in = min_max1 lpoints in
-      let r_in = min_max2 rpoints in
-      Node (new_node pn.l_vp l_in pn.r_vp r_in
-              (create (strip2 lpoints))
-              (create (strip2 rpoints)))
+      Node { l_vp = pn.l_vp;
+             l_sup = max1 lpoints;
+             r_vp = pn.r_vp;
+             r_sup = max2 rpoints;
+             left = create (strip2 lpoints);
+             right = create (strip2 rpoints) }
 
   (* to_list with a nodes acc *)
   let rec to_list_loop acc = function
@@ -282,7 +268,7 @@ module Make = functor (P: Point) (C: Config) -> struct
         let b_d = P.dist query b.vp in
         let x', d' = if b_d < d then (b.vp, b_d) else acc in
         (* should we inspect bucket points? *)
-        if b_d -. b.bounds.sup >= d' then (x', d') (* no *)
+        if b_d -. b.sup >= d' then (x', d') (* no *)
         else (* yes *)
           A.fold_left (fun (nearest_p, nearest_d) y ->
               let y_d = P.dist query y in
@@ -293,12 +279,12 @@ module Make = functor (P: Point) (C: Config) -> struct
         let x', d' = if l_d < d then (n.l_vp, l_d) else acc in
         (* should we dive left? *)
         let x'', d'' =
-          if l_d -. n.l_in.sup >= d' then (x', d') (* no *)
+          if l_d -. n.l_sup >= d' then (x', d') (* no *)
           else loop (x', d') n.left (* yes *) in
         (* should we dive right? *)
         let r_d = P.dist query n.r_vp in
         let x''', d''' = if r_d < d'' then (n.r_vp, r_d) else (x'', d'') in
-        if r_d -. n.r_in.sup >= d''' then (x''', d''') (* no *)
+        if r_d -. n.r_sup >= d''' then (x''', d''') (* no *)
         else loop (x''', d''') n.right (* yes *) in
     match tree with
     | Empty -> raise Not_found
@@ -314,7 +300,7 @@ module Make = functor (P: Point) (C: Config) -> struct
         let b_d = P.dist query b.vp in
         let acc' = if b_d <= tol then b.vp :: acc else acc in
         (* should we inspect bucket points? *)
-        if b_d -. b.bounds.sup > tol then acc' (* no *)
+        if b_d -. b.sup > tol then acc' (* no *)
         else (* yes *)
           A.fold_left (fun acc'' y ->
               let y_d = P.dist query y in
@@ -325,12 +311,12 @@ module Make = functor (P: Point) (C: Config) -> struct
         let acc' = if l_d <= tol then n.l_vp :: acc else acc in
         (* should we dive left? *)
         let acc'' =
-          if l_d -. n.l_in.sup > tol then acc' (* no *)
+          if l_d -. n.l_sup > tol then acc' (* no *)
           else loop acc' n.left (* yes *) in
         (* should we dive right? *)
         let r_d = P.dist query n.r_vp in
         let acc''' = if r_d <= tol then n.r_vp :: acc'' else acc'' in
-        if r_d -. n.r_in.sup > tol then acc''' (* no *)
+        if r_d -. n.r_sup > tol then acc''' (* no *)
         else loop acc''' n.right (* yes *) in
     loop [] tree
 
@@ -341,16 +327,16 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Bucket b -> (* check bounds *)
       A.for_all (fun x ->
           let d = P.dist b.vp x in
-          Itv.is_inside b.bounds d
+          d <= b.sup
         ) b.points
     | Node n -> (* check bounds *)
       L.for_all (fun x -> (* lbounds *)
           let d = P.dist n.l_vp x in
-          Itv.is_inside n.l_in d
+          d <= n.l_sup
         ) (to_list n.left) &&
       L.for_all (fun x -> (* rbounds *)
           let d = P.dist n.r_vp x in
-          Itv.is_inside n.r_in d
+          d <= n.r_sup
         ) (to_list n.right) &&
       (* check left then right *)
       check n.left && check n.right

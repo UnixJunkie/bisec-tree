@@ -1,9 +1,9 @@
 (jbuild_version 1)
 
 (library
- ((name        bisec)
-  (public_name bisec)
-  (modules (bisec_tree myArray))))
+ ((name        bst)
+  (public_name bst)
+  (modules (bisec_tree))))
 
 (executable
  ((name        test)

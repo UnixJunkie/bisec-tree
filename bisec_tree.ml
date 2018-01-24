@@ -29,7 +29,8 @@ module type Config = sig
      all in the same bucket. Else, we continue constructing
      the tree recursively.
      This should save storage space and accelerate queries.
-     The best value for k is probably dataset and application dependent. *)
+     The best value for k is probably dataset and application dependent.
+     k = 0 => the tree is not bucketized *)
   val k: int (* bucket size *)
   val q: quality
 end

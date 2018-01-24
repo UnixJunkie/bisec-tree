@@ -51,6 +51,14 @@ let neighbors_brute_force query tol points =
   A.iter (fun p -> if P.dist p query <= tol then res := p :: !res) points;
   !res
 
+(* measure time spent in f in seconds *)
+let wall_clock_time f =
+  let start = Unix.gettimeofday () in
+  let res = f () in
+  let stop = Unix.gettimeofday () in
+  let delta_t = stop -. start in
+  (delta_t, res)
+
 let main () =
   Log.color_on ();
   Log.set_log_level Log.INFO;
@@ -99,10 +107,25 @@ let main () =
          Log.debug "d': %f" d';
          brute_points = smart_points
       ) points
-  )
+  );
+  (* time construction of tree for many points Vs heuristic *)
+  let many_points = A.init 1_000_000 (fun _ -> P.rand ()) in
+  let dt1, tree1 = wall_clock_time (fun () -> BST.create many_points) in
+  Log.info "dt1: %f" dt1;
+  assert(BST.check tree1);
+  for i = 1 to 50 do
+    let q = P.rand () in
+    let dt, (p, d) =
+      wall_clock_time (fun () -> nearest_brute_force q many_points) in
+    let dt', (p', d') =
+      wall_clock_time (fun () -> BST.nearest_neighbor q tree1) in
+    assert((p, d) = (p', d'));
+    Log.info "dt: %f dt': %f" dt dt'
+  done;
+  ()
 
-(* FBR: test nearest_neighbor queries against brute force *)
-(* time construction of tree for many points Vs heuristic *)
+(* FBR: count number of calls to dist using an observed distance *)
+
 (* time queries vs brute force *)
 
 let () = main ()

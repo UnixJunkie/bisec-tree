@@ -94,14 +94,14 @@ module Make = functor (P: Point) (C: Config) -> struct
     A.map (fun x -> x.p) points
   (* return max dist to vp1 *)
   let max1 (points: point2 array): float =
-    let maxi = ref points.(0).d1 in
+    let maxi = ref 0.0 in
     A.iter (fun x ->
         maxi := fmax !maxi x.d1
       ) points;
     !maxi
   (* return max dist to vp2 *)
   let max2 (points: point2 array): float =
-    let maxi = ref points.(0).d2 in
+    let maxi = ref 0.0 in
     A.iter (fun x ->
         maxi := fmax !maxi x.d2
       ) points;

@@ -139,7 +139,10 @@ module Make = functor (P: Point) (C: Config) -> struct
   let one_band (points: P.t array) =
     let n = Array.length points in
     if n = 0 then Pre_empty
-    else
+    else if n = 1 then Pre_bucket { vp = points.(0); points = [||] }
+    else if n = 2 then
+      Pre_node { l_vp = points.(0); points = [||]; r_vp = points.(1) }
+    else (* n > 2 *)
       let enr_points = rand_vp points in
       let vp1 = enr_points.(0).p in
       let vp2 = enr_points.(n - 1).p in
@@ -162,7 +165,10 @@ module Make = functor (P: Point) (C: Config) -> struct
   let two_bands (points: P.t array) =
     let n = Array.length points in
     if n = 0 then Pre_empty
-    else
+    else if n = 1 then Pre_bucket { vp = points.(0); points = [||] }
+    else if n = 2 then
+      Pre_node { l_vp = points.(0); points = [||]; r_vp = points.(1) }
+    else (* n > 2 *)
       let enr_points = rand_vp points in
       (* furthest from random vp *)
       let vp = enr_points.(n - 1).p in

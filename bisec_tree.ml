@@ -16,8 +16,8 @@ end
    ieeexplore.ieee.org/iel5/32/35936/01703102.pdf *)
 
 type quality =
-  | Best (* we use brute force to find the diameter of the point set;
-            of course, this will not scale in case you have many points *)
+  (* | Best (\* we use brute force to find the diameter of the point set;
+   *           of course, this will not scale in case you have many points *\) *)
   | Good of int (* we use a heuristic to find good vp candidates;
                    Good n => we will try to find a double normal using
                    n optimization steps at most. Optim. stops as soon as a
@@ -192,7 +192,7 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Good 1 -> one_band
     | Good 2 -> two_bands
     | Good _ -> failwith "heuristic: not implemented yet: Good _"
-    | Best -> failwith "heuristic: not implemented yet: Best"
+    (* | Best -> failwith "heuristic: not implemented yet: Best" *)
 
   (* sample distances between all distinct points in a sample.
      The result is sorted. *)

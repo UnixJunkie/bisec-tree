@@ -138,9 +138,6 @@ let main () =
   let tree' = BST.create points' in
   (* check tree invariant *)
   assert(BST.check tree);
-  let dists = BST.sample_distances (nb_points / 10) points in
-  let dists_fn = "test.dists" in
-  array_to_file dists_fn string_of_float dists;
   (* check all points are in the tree *)
   let n = L.length (BST.to_list tree) in
   assert(n = nb_points);
@@ -178,6 +175,10 @@ let main () =
   );
   (* time construction of tree for many points Vs heuristic *)
   let many_points = A.init 1_000_000 (fun _ -> P.rand ()) in
+  (* inspect distribution of distances *)
+  let dists = BST.sample_distances 1000 many_points in
+  let dists_fn = "dists_1000.txt" in
+  array_to_file dists_fn string_of_float dists;
   let dt1, big_tree = wall_clock_time (fun () -> BST.create many_points) in
   Log.info "dt1: %f" dt1;
   assert(BST.check big_tree);

@@ -42,6 +42,10 @@ sig
   (** [create points] create the BST containing all points. *)
   val create: P.t array -> t
 
+  (** [sample_distances n points] sample distances between points
+      in a random sample of size [n]. *)
+  val sample_distances: int -> P.t array -> float array
+
   (** [nearest_neighbor q bst] return the distance along with the nearest
       neighbor to query point [q] in [bst]. Warning: there may be several
       points at this distance from [q] in [bst],

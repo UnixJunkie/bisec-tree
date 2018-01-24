@@ -1,4 +1,4 @@
-.PHONY: test
+.PHONY: test install doc uninstall clean
 
 all:
 	jbuilder build @install
@@ -10,8 +10,12 @@ test:
 install: all
 	jbuilder install
 
+doc:
+	mkdir -p doc
+	ocamldoc -html -o doc/bisec_tree bisec_tree.mli
+
 uninstall:
-	ocamlfind -remove bisec
+	jbuilder uninstall
 
 clean:
 	rm -rf _build

@@ -3,7 +3,7 @@
 (library
  ((name        bisec)
   (public_name bisec)
-  (modules (bisec_tree myArray itv))))
+  (modules (bisec_tree myArray))))
 
 (executable
  ((name        test)

@@ -220,8 +220,6 @@ module Make = functor (P: Point) (C: Config) -> struct
     A.sort fcmp distances;
     distances
 
-  (* FBR: check all calls to sort; some are not necessary *)
-
   let rec create (points: P.t array): t =
     match heuristic points with
     | Pre_empty -> Empty
@@ -231,9 +229,6 @@ module Make = functor (P: Point) (C: Config) -> struct
       (* points to the left are strictly closer to l_vp
          than points to the right *)
       let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
-      (* lpoints are sorted by incr. dist. to l_vp,
-         but rpoints need to be sorted by incr. dist. to r_vp *)
-      Array.sort point2_cmp2 rpoints;
       let l_in = min_max1 lpoints in
       let r_in = min_max2 rpoints in
       Node (new_node pn.l_vp l_in pn.r_vp r_in
@@ -267,39 +262,6 @@ module Make = functor (P: Point) (C: Config) -> struct
   let to_list t =
     to_list_loop [] t
 
-  let neighbors query tol tree =
-    let rec loop acc = function
-      | Empty -> acc
-      | Node n ->
-        (* is l_vp near enough? *)
-        let l_d = P.dist query n.l_vp in
-        let l_nearby_query = Itv.make (l_d -. tol) (l_d +. tol) in
-        let acc' = if l_d <= tol then n.l_vp :: acc else acc in
-        (* should we dive left? *)
-        let acc'' =
-          if Itv.dont_overlap l_nearby_query n.l_in then acc'
-          else loop acc' n.left in
-        (* is r_vp near enough? *)
-        let r_d = P.dist query n.r_vp in
-        let r_nearby_query = Itv.make (r_d -. tol) (r_d +. tol) in
-        let acc''' = if r_d <= tol then n.r_vp :: acc'' else acc'' in
-        (* should we dive right? *)
-        if Itv.dont_overlap r_nearby_query n.r_in then acc'''
-        else loop acc''' n.right
-      | Bucket b ->
-        (* is vp near enough? *)
-        let d = P.dist b.vp query in
-        let acc' = if d <= tol then b.vp :: acc else acc in
-        (* should we inspect the bucket? *)
-        let nearby_query = Itv.make (d -. tol) (d +. tol) in
-        if Itv.dont_overlap nearby_query b.bounds then acc'
-        else
-          A.fold_left (fun accu x ->
-              let d' = P.dist query x in
-              if d' <= tol then x :: accu else accu
-            ) acc' b.points in
-    loop [] tree
-
   let is_empty = function
     | Empty -> true
     | _ -> false
@@ -312,9 +274,6 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Empty -> raise Not_found
     | Node n -> n.l_vp
     | Bucket b -> b.vp
-
-  (* FBR: reread code for correctness Vs.
-     which side of the sub-tree must be visited *)
 
   let nearest_neighbor query tree =
     let rec loop ((x, d) as acc) = function
@@ -346,6 +305,34 @@ module Make = functor (P: Point) (C: Config) -> struct
     | not_empty ->
       let x = root not_empty in
       loop (x, P.dist query x) not_empty
+
+  (* return all points [x] such that [P.dist query x <= tol] *)
+  let neighbors query tol tree =
+    let rec loop acc = function
+      | Empty -> acc
+      | Bucket b ->
+        let b_d = P.dist query b.vp in
+        let acc' = if b_d <= tol then b.vp :: acc else acc in
+        (* should we inspect bucket points? *)
+        if b_d -. b.bounds.sup > tol then acc' (* no *)
+        else (* yes *)
+          A.fold_left (fun acc'' y ->
+              let y_d = P.dist query y in
+              if y_d <= tol then y :: acc'' else acc''
+            ) acc' b.points
+      | Node n ->
+        let l_d = P.dist query n.l_vp in
+        let acc' = if l_d <= tol then n.l_vp :: acc else acc in
+        (* should we dive left? *)
+        let acc'' =
+          if l_d -. n.l_in.sup > tol then acc' (* no *)
+          else loop acc' n.left (* yes *) in
+        (* should we dive right? *)
+        let r_d = P.dist query n.r_vp in
+        let acc''' = if r_d <= tol then n.r_vp :: acc'' else acc'' in
+        if r_d -. n.r_in.sup > tol then acc''' (* no *)
+        else loop acc''' n.right (* yes *) in
+    loop [] tree
 
   (* test if the tree invariant holds.
      If it doesn't, we are in trouble... *)

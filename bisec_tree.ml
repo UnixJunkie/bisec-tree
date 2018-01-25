@@ -66,9 +66,6 @@ module Make = functor (P: Point) (C: Config) -> struct
     else if x > y then 1
     else 0 (* x = y *)
 
-  let fmin (x: float) (y: float): float =
-    if x < y then x else y
-
   let fmax (x: float) (y: float): float =
     if x > y then x else y
 
@@ -84,10 +81,6 @@ module Make = functor (P: Point) (C: Config) -> struct
   type point2 = { p: P.t;
                   d1: float;
                   d2: float }
-  let point2_cmp1 (x: point2) (y: point2): int =
-    fcmp x.d1 y.d1
-  let point2_cmp2 (x: point2) (y: point2): int =
-    fcmp x.d2 y.d2
   let enr2 (vp: P.t) (p: point1): point2 =
     { p = p.p; d1 = p.d1; d2 = P.dist vp p.p }
   let strip2 (points: point2 array): P.t array =
@@ -146,7 +139,9 @@ module Make = functor (P: Point) (C: Config) -> struct
       let enr_points = rand_vp points in
       let vp1 = enr_points.(0).p in
       let vp2 = enr_points.(n - 1).p in
-      if n <= C.k then
+      (* we bucketize because there are not enough points left, or because
+       * it is not possible to bisect space further *)
+      if n <= C.k || P.dist vp1 vp2 = 0.0 then
         (* we use vp2 to index the bucket: vp2 is supposed to be good
            while vp1 is random *)
         let enr_rem = A.sub enr_points 0 (n - 1) in
@@ -176,7 +171,9 @@ module Make = functor (P: Point) (C: Config) -> struct
       (* maybe double normal *)
       let vp1 = enr_points1.(0).p in
       let vp2 = enr_points1.(n - 1).p in
-      if n <= C.k then
+      (* we bucketize because there are not enough points left, or because
+       * it is not possible to bisect space further *)
+      if n <= C.k || P.dist vp1 vp2 = 0.0 then
         (* we use vp2 to index the bucket *)
         let enr_rem = A.sub enr_points1 0 (n - 1) in
         let rem = Array.map (enr2 vp2) enr_rem in

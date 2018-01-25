@@ -227,7 +227,7 @@ module Make = functor (P: Point) (C: Config) -> struct
              left = create (strip2 lpoints);
              right = create (strip2 rpoints) }
 
-  (* to_list with a nodes acc *)
+  (* to_list with an acc *)
   let rec to_list_loop acc = function
     | Empty -> acc
     | Node n ->
@@ -294,7 +294,12 @@ module Make = functor (P: Point) (C: Config) -> struct
         let acc' = if b_d <= tol then b.vp :: acc else acc in
         (* should we inspect bucket points? *)
         if b_d -. b.sup > tol then acc' (* no *)
-        else (* yes *)
+        else if b_d +. b.sup <= tol then
+          (* all remaining points are OK *)
+          A.fold_left (fun accu x ->
+              x :: accu
+            ) acc' b.points
+        else (* we need to inspect the bucket *)
           A.fold_left (fun acc'' y ->
               let y_d = P.dist query y in
               if y_d <= tol then y :: acc'' else acc''
@@ -305,12 +310,18 @@ module Make = functor (P: Point) (C: Config) -> struct
         (* should we dive left? *)
         let acc'' =
           if l_d -. n.l_sup > tol then acc' (* no *)
-          else loop acc' n.left (* yes *) in
+          else if l_d +. n.l_sup <= tol then
+            (* all remaining points are OK *)
+            to_list_loop acc' n.left
+          else
+            loop acc' n.left in
         (* should we dive right? *)
         let r_d = P.dist query n.r_vp in
         let acc''' = if r_d <= tol then n.r_vp :: acc'' else acc'' in
         if r_d -. n.r_sup > tol then acc''' (* no *)
-        else loop acc''' n.right (* yes *) in
+        else if r_d +. n.r_sup <= tol then
+          to_list_loop acc''' n.right
+        else loop acc''' n.right in
     loop [] tree
 
   (* test if the tree invariant holds.

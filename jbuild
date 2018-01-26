@@ -5,6 +5,6 @@
   (public_name bst)
   (modules (bisec_tree myArray))))
 
-(executable
- ((name        test)
-  (libraries (unix dolog))))
+(executables
+ ((names     (test dump))
+  (libraries (unix dolog batteries minicli))))

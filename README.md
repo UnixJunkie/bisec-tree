@@ -1,2 +1,5 @@
 # bisec-tree
-data structure experiment
+
+![Bunny](data/stanford_bunny.png?raw=true)
+
+A data structure experiment.

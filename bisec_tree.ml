@@ -23,6 +23,8 @@ type quality =
                    n optimization steps at most. Optim. stops as soon as a
                    double normal is found. *)
 
+type direction = Left | Right
+
 module type Config = sig
   (* The data structure is parametrized by k:
      if there are n <= k points left, we put them
@@ -237,6 +239,32 @@ module Make = functor (P: Point) (C: Config) -> struct
 
   let to_list t =
     to_list_loop [] t
+
+  (* dive in the tree until [max_depth] is reached
+     (or you cannot go further down) then dump all points
+     along with the descent path that was followed to reach them *)
+  let dump max_depth t =
+    let rec loop acc path curr_depth = function
+      | Empty -> acc
+      | Bucket b ->
+        let points = to_list (Bucket b) in
+        (L.rev path, points) :: acc
+      | Node n ->
+        if curr_depth = max_depth then
+          let l_points = n.l_vp :: to_list n.left in
+          let l_path = Left :: path in
+          let r_points = n.r_vp :: to_list n.right in
+          let r_path = Right :: path in
+          (L.rev l_path, l_points) ::
+          (L.rev r_path, r_points) :: acc
+        else
+          let l_path = Left :: path in
+          let r_path = Right :: path in
+          let acc' = (L.rev l_path, [n.l_vp]) :: acc in
+          let acc'' = loop acc' l_path (curr_depth + 1) n.left in
+          let acc''' = (L.rev r_path, [n.r_vp]) :: acc'' in
+          loop acc''' r_path (curr_depth + 1) n.right in
+    loop [] [] 1 t
 
   let is_empty = function
     | Empty -> true

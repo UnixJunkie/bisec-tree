@@ -20,6 +20,10 @@ end
     Currently, we only support n = 1 or 2. *)
 type quality = Good of int
 
+(** To reach a point in the vpt, you need to follow a path.
+    A path is a list of directions. *)
+type direction = Left | Right
+
 module type Config = sig
   (** Bucket size. If there are n <= k points left, we put them
       in the same bucket. Else, we continue constructing
@@ -93,4 +97,8 @@ sig
   (** [inspect bst] extract the vantage points of [bst]
       in an unspecified order. *)
   val inspect: t -> P.t list
+
+  (** [dump max_depth bst] list points and paths to reach
+      them in the [vpt], going down up to [max_depth]. *)
+  val dump: int -> t -> (direction list * P.t list) list
 end

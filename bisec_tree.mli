@@ -13,10 +13,7 @@ sig
   val dist: t -> t -> float
 end
 
-(** We use a heuristic to find good vantage (reference) points;
-    Good n => we will try to find a double normal using
-    n optimization steps at most. Optimization stops as soon as a
-    double normal is found.
+(** We use a heuristic to find good vantage (reference) points.
     Currently, we only support n = 1 or 2. *)
 type quality = Good of int
 

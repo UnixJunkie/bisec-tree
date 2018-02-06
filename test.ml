@@ -183,6 +183,7 @@ let main () =
   Log.info "dt1: %f" dt1;
   assert(BST.check big_tree);
 
+  (* those take a lot of time *)
   let tree0 = BST0.create many_points in
   assert(BST0.check tree0);
   let tree1 = BST1.create many_points in

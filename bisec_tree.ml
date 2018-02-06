@@ -18,10 +18,7 @@ end
 type quality =
   (* | Best (\* we use brute force to find the diameter of the point set;
    *           of course, this will not scale in case you have many points *\) *)
-  | Good of int (* we use a heuristic to find good vp candidates;
-                   Good n => we will try to find a double normal using
-                   n optimization steps at most. Optim. stops as soon as a
-                   double normal is found. *)
+  | Good of int (* we use a heuristic to find good vp candidates *)
 
 type direction = Left | Right
 
@@ -89,14 +86,14 @@ module Make = functor (P: Point) (C: Config) -> struct
     A.map (fun x -> x.p) points
   (* return max dist to vp1 *)
   let max1 (points: point2 array): float =
-    let maxi = ref 0.0 in
+    let maxi = ref 0.0 in (* a distance is always >= 0.0 *)
     A.iter (fun x ->
         maxi := fmax !maxi x.d1
       ) points;
     !maxi
   (* return max dist to vp2 *)
   let max2 (points: point2 array): float =
-    let maxi = ref 0.0 in
+    let maxi = ref 0.0 in (* a distance is always >= 0.0 *)
     A.iter (fun x ->
         maxi := fmax !maxi x.d2
       ) points;
@@ -150,14 +147,12 @@ module Make = functor (P: Point) (C: Config) -> struct
         let rem = Array.map (enr2 vp2) enr_rem in
         Pre_bucket { vp = vp2; points = rem }
       else
-        (* remove selected vps from points array
+        (* remove selected vps from point array
            and enrich points by their dist to vp2 *)
         let enr_rem = A.sub enr_points 1 (n - 2) in
         let rem = Array.map (enr2 vp2) enr_rem in
         Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
 
-  (* pseudo double normal: we look for a double normal,
-     but we don't check if we actually got one *)
   let two_bands (points: P.t array) =
     let n = Array.length points in
     if n = 0 then Pre_empty
@@ -170,7 +165,6 @@ module Make = functor (P: Point) (C: Config) -> struct
       let vp = enr_points.(n - 1).p in
       let enr_points1 = Array.map (enr vp) points in
       Array.sort point1_cmp enr_points1;
-      (* maybe double normal *)
       let vp1 = enr_points1.(0).p in
       let vp2 = enr_points1.(n - 1).p in
       (* we bucketize because there are not enough points left, or because
@@ -190,15 +184,20 @@ module Make = functor (P: Point) (C: Config) -> struct
   let heuristic = match C.q with
     | Good 1 -> one_band
     | Good 2 -> two_bands
-    | Good _ -> failwith "heuristic: not implemented yet: Good _"
-    (* | Best -> failwith "heuristic: not implemented yet: Best" *)
+    | Good n ->
+      failwith (Printf.sprintf "heuristic: not implemented yet: Good %d" n)
+  (* | Best -> failwith "heuristic: not implemented yet: Best" *)
 
   (* sample distances between all distinct points in a sample.
      The result is sorted. *)
   let sample_distances (sample_size: int) (points: P.t array): float array =
     let n = A.length points in
+    assert(n > 0);
     (* draw with replacement *)
-    let sample = A.init sample_size (fun _ -> points.(Random.int n)) in
+    let sample =
+      A.init sample_size (fun _ ->
+          let rand = rand_int n in
+          points.(rand)) in
     let distances = A.make (sample_size * (sample_size - 1) / 2) 0.0 in
     let k = ref 0 in
     for i = 0 to sample_size - 2 do
@@ -258,12 +257,13 @@ module Make = functor (P: Point) (C: Config) -> struct
           (L.rev l_path, l_points) ::
           (L.rev r_path, r_points) :: acc
         else
+          let depth' = curr_depth + 1 in
           let l_path = Left :: path in
           let r_path = Right :: path in
           let acc' = (L.rev l_path, [n.l_vp]) :: acc in
-          let acc'' = loop acc' l_path (curr_depth + 1) n.left in
+          let acc'' = loop acc' l_path depth' n.left in
           let acc''' = (L.rev r_path, [n.r_vp]) :: acc'' in
-          loop acc''' r_path (curr_depth + 1) n.right in
+          loop acc''' r_path depth' n.right in
     loop [] [] 1 t
 
   let is_empty = function
@@ -279,6 +279,7 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Node n -> n.l_vp
     | Bucket b -> b.vp
 
+  (* nearest point to query point *)
   let nearest_neighbor query tree =
     let rec loop ((x, d) as acc) = function
       | Empty -> acc
@@ -310,7 +311,7 @@ module Make = functor (P: Point) (C: Config) -> struct
       let x = root not_empty in
       loop (x, P.dist query x) not_empty
 
-  (* return all points [x] such that [P.dist query x <= tol] *)
+  (* all points [x] such that [P.dist query x <= tol] *)
   let neighbors query tol tree =
     let rec loop acc = function
       | Empty -> acc
@@ -339,14 +340,18 @@ module Make = functor (P: Point) (C: Config) -> struct
             (* all remaining points are OK *)
             to_list_loop acc' n.left
           else
+            (* need to inspect further *)
             loop acc' n.left in
         (* should we dive right? *)
         let r_d = P.dist query n.r_vp in
         let acc''' = if r_d <= tol then n.r_vp :: acc'' else acc'' in
         if r_d -. n.r_sup > tol then acc''' (* no *)
         else if r_d +. n.r_sup <= tol then
+          (* all remaining points are OK *)
           to_list_loop acc''' n.right
-        else loop acc''' n.right in
+        else
+          (* need to inspect further *)
+          loop acc''' n.right in
     loop [] tree
 
   (* test if the tree invariant holds.

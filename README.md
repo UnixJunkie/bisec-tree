@@ -2,7 +2,7 @@
 
 Bisector tree implementation in OCaml.
 
-A bisector tree allows to do fast but exact nearest neighbor searches
+A bisector tree allows to do fast and exact nearest neighbor searches
 in any space provided that you have a metric (function) to measure the
 distance between any two points in that space.
 

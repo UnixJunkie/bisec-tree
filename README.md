@@ -13,4 +13,5 @@ ieeexplore.ieee.org/iel5/32/35936/01703102.pdf
 
 ![Bunny](data/stanford_bunny.png?raw=true)
 
-Figure: the Stanford bunny guillotined by a bisector tree.
+Figure: the Stanford bunny, consisting of 35947 3D points, guillotined
+by the first layer of a bisector tree.

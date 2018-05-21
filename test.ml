@@ -16,80 +16,80 @@ module P = struct
     (Random.State.float rng 1.0, Random.State.float rng 1.0)
 end
 
-let qual1 = Bisec_tree.Good 1
-let qual2 = Bisec_tree.Good 2
+let qual1 = Bst.Bisec_tree.Good 1
+let qual2 = Bst.Bisec_tree.Good 2
 
 module C = struct
   let k = 50
   let q = qual2
 end
-module BST = Bisec_tree.Make (P) (C)
+module BST = Bst.Bisec_tree.Make (P) (C)
 
 module C0 = struct
   let k = 0
   let q = qual2
 end
-module BST0 = Bisec_tree.Make (P) (C0)
+module BST0 = Bst.Bisec_tree.Make (P) (C0)
 
 module C1 = struct
   let k = 1
   let q = qual2
 end
-module BST1 = Bisec_tree.Make (P) (C1)
+module BST1 = Bst.Bisec_tree.Make (P) (C1)
 
 module C2 = struct
   let k = 2
   let q = qual2
 end
-module BST2 = Bisec_tree.Make (P) (C2)
+module BST2 = Bst.Bisec_tree.Make (P) (C2)
 
 module C5 = struct
   let k = 5
   let q = qual2
 end
-module BST5 = Bisec_tree.Make (P) (C5)
+module BST5 = Bst.Bisec_tree.Make (P) (C5)
 
 module C10 = struct
   let k = 10
   let q = qual2
 end
-module BST10 = Bisec_tree.Make (P) (C10)
+module BST10 = Bst.Bisec_tree.Make (P) (C10)
 
 module C20 = struct
   let k = 20
   let q = qual2
 end
-module BST20 = Bisec_tree.Make (P) (C20)
+module BST20 = Bst.Bisec_tree.Make (P) (C20)
 
 module C50 = struct
   let k = 50
   let q = qual2
 end
-module BST50 = Bisec_tree.Make (P) (C50)
+module BST50 = Bst.Bisec_tree.Make (P) (C50)
 
 module C100 = struct
   let k = 100
   let q = qual2
 end
-module BST100 = Bisec_tree.Make (P) (C100)
+module BST100 = Bst.Bisec_tree.Make (P) (C100)
 
 module C200 = struct
   let k = 200
   let q = qual2
 end
-module BST200 = Bisec_tree.Make (P) (C200)
+module BST200 = Bst.Bisec_tree.Make (P) (C200)
 
 module C500 = struct
   let k = 500
   let q = qual2
 end
-module BST500 = Bisec_tree.Make (P) (C500)
+module BST500 = Bst.Bisec_tree.Make (P) (C500)
 
 module C1000 = struct
   let k = 1000
   let q = qual2
 end
-module BST1000 = Bisec_tree.Make (P) (C1000)
+module BST1000 = Bst.Bisec_tree.Make (P) (C1000)
 
 let with_out_file fn f =
   let output = open_out_bin fn in

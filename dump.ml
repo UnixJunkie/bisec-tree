@@ -20,13 +20,13 @@ module P3D = struct
     sprintf "%f %f %f" x y z
 end
 
-let qual2 = Bisec_tree.Good 2
+let qual2 = Bst.Bisec_tree.Good 2
 
 module C = struct
   let k = 10
   let q = qual2
 end
-module BST = Bisec_tree.Make (P3D) (C)
+module BST = Bst.Bisec_tree.Make (P3D) (C)
 
 let with_in_file fn f =
   let input = open_in_bin fn in
@@ -43,8 +43,8 @@ let lines_of_file fn =
     )
 
 let char_of_dir = function
-  | Bisec_tree.Left -> '0'
-  | Bisec_tree.Right -> '1'
+  | Bst.Bisec_tree.Left -> '0'
+  | Bst.Bisec_tree.Right -> '1'
 
 let string_of_path p =
   let buff = Buffer.create 80 in

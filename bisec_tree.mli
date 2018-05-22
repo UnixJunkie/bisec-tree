@@ -40,8 +40,12 @@ sig
   (** A Bisector Tree (BST). *)
   type t
 
-  (** [create points] create the BST containing all points. *)
+  (** [create points] create the BST containing all [points]. *)
   val create: P.t array -> t
+
+  (** [par_create nprocs points] compute in parallel and using up to [nprocs]
+      the BST containing all [points]. [nprocs] _must_ be a power of two. *)
+  val par_create: int -> P.t array -> t
 
   (** [sample_distances n points] sample distances between points
       in a random sample of size [n]. *)

@@ -1,4 +1,6 @@
 
+open Printf
+
 module A = MyArray
 module L = List
 
@@ -185,7 +187,7 @@ module Make = functor (P: Point) (C: Config) -> struct
     | Good 1 -> one_band
     | Good 2 -> two_bands
     | Good n ->
-      failwith (Printf.sprintf "heuristic: not implemented yet: Good %d" n)
+      failwith (sprintf "heuristic: not implemented yet: Good %d" n)
   (* | Best -> failwith "heuristic: not implemented yet: Best" *)
 
   (* sample distances between all distinct points in a sample.
@@ -224,6 +226,58 @@ module Make = functor (P: Point) (C: Config) -> struct
              r_sup = max2 rpoints;
              left = create (strip2 lpoints);
              right = create (strip2 rpoints) }
+
+  (* base two log *)
+  let log_2 (x: float): float =
+    (log x) /. (log 2.0)
+
+  let parmap ~ncores f l =
+    Parmap.parmap ~ncores ~chunksize:1 f (Parmap.L l)
+
+  (* parallel tree construction, with up to [nprocs] at the same time *)
+  let par_create (nprocs: int) (points': P.t array): t =
+    let power_f = log_2 (float nprocs) in
+    let power_frac, power_integral = modf power_f in
+    if power_frac <> 0.0 then
+      failwith (sprintf "Bisec_tree.par_create: nprocs not a power of two: %d"
+                  nprocs)
+    else
+      let power = int_of_float power_integral in
+      let rec loop depth points =
+        match heuristic points with
+        | Pre_empty -> Empty
+        | Pre_bucket b ->
+          Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
+        | Pre_node pn ->
+          let lpoints, rpoints =
+            (* points to the left are strictly closer to l_vp
+               than points to the right *)
+            A.partition (fun p -> p.d1 < p.d2) pn.points in
+          let depth' = depth + 1 in
+          if depth < power then
+            (* we label points with Left and Right because parmap
+             * (with chunksize) may return results in an arbitrary order *)
+            begin match parmap ~ncores:2
+                          (fun (dir, ps) -> (dir, loop depth' (strip2 ps)))
+                          [(Left, lpoints); (Right, rpoints)] with
+            | [(Left, left); (Right, right)]
+            | [(Right, right); (Left, left)] ->
+              Node { l_vp = pn.l_vp;
+                     l_sup = max1 lpoints;
+                     r_vp = pn.r_vp;
+                     r_sup = max2 rpoints;
+                     left;
+                     right }
+            | _ -> assert(false)
+            end
+          else (* depth >= power: stop forking *)
+            Node { l_vp = pn.l_vp;
+                   l_sup = max1 lpoints;
+                   r_vp = pn.r_vp;
+                   r_sup = max2 rpoints;
+                   left = create (strip2 lpoints);
+                   right = create (strip2 rpoints) } in
+      loop 0 points'
 
   (* to_list with an acc *)
   let rec to_list_loop acc = function

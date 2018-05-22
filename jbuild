@@ -3,7 +3,8 @@
 (library
  ((name        bst)
   (public_name bst)
-  (modules (bisec_tree myArray))))
+  (modules (bisec_tree myArray))
+  (libraries (parmap))))
 
 (executables
  ((names     (test dump))

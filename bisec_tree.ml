@@ -227,6 +227,7 @@ module Make = functor (P: Point) (C: Config) -> struct
              left = create (strip2 lpoints);
              right = create (strip2 rpoints) }
 
+  (*
   (* base two log *)
   let log_2 (x: float): float =
     (log x) /. (log 2.0)
@@ -278,6 +279,8 @@ module Make = functor (P: Point) (C: Config) -> struct
                    left = create (strip2 lpoints);
                    right = create (strip2 rpoints) } in
       loop 0 points'
+
+*)
 
   (* to_list with an acc *)
   let rec to_list_loop acc = function

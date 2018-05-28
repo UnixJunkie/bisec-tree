@@ -13,29 +13,14 @@ sig
   val dist: t -> t -> float
 end
 
-(** We use a heuristic to find good vantage (reference) points.
-    Currently, we only support n = 1 or 2. *)
-type quality = Good of int
+(** Heuristic to find good vantage (reference) points. *)
+type vp_heuristic = One_band | Two_bands
 
 (** To reach a point in the vpt, you need to follow a path.
     A path is a list of directions. *)
 type direction = Left | Right
 
-module type Config = sig
-  (** Bucket size. If there are n <= k points left, we put them
-      in the same bucket. Else, we continue constructing
-      the tree recursively.
-      This should save storage space and accelerate queries.
-      The best value for k is probably dataset and application dependent.
-      k = 0 => the tree is not bucketized.
-      k = 50 might be a good default value. *)
-  val k: int
-
-  (** Vantage point finding heuristic quality. *)
-  val q: quality
-end
-
-module Make: functor (P: Point) (C: Config) ->
+module Make: functor (P: Point) ->
 sig
   (** A Bisector Tree (BST). *)
   type t
@@ -43,9 +28,11 @@ sig
   (** [create points] create the BST containing all [points]. *)
   val create: P.t array -> t
 
+  (*
   (** [par_create nprocs points] compute in parallel and using up to [nprocs]
       the BST containing all [points]. [nprocs] _must_ be a power of two. *)
   val par_create: int -> P.t array -> t
+*)
 
   (** [sample_distances n points] sample distances between points
       in a random sample of size [n]. *)

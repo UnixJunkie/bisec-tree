@@ -169,24 +169,13 @@ module Make = functor (P: Point) -> struct
         let rem = Array.map (enr2 vp2) enr_rem in
         Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
 
-  (* sample distances between all distinct points in a sample.
-     The result is sorted. *)
   let sample_distances (sample_size: int) (points: P.t array): float array =
     let n = A.length points in
     assert(n > 0);
-    (* draw with replacement *)
-    let sample =
+    let distances =
       A.init sample_size (fun _ ->
-          let rand = rand_int n in
-          points.(rand)) in
-    let distances = A.make (sample_size * (sample_size - 1) / 2) 0.0 in
-    let k = ref 0 in
-    for i = 0 to sample_size - 2 do
-      for j = i + 1 to sample_size - 1 do
-        distances.(!k) <- P.dist sample.(i) sample.(j);
-        incr k
-      done;
-    done;
+          P.dist points.(rand_int n) points.(rand_int n)
+        ) in
     A.sort fcmp distances;
     distances
 

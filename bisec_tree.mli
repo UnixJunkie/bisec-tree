@@ -34,8 +34,8 @@ sig
   val par_create: int -> P.t array -> t
 *)
 
-  (** [sample_distances n points] sample distances between points
-      in a random sample of size [n]. *)
+  (** [sample_distances n points] get distances found in [n] pairs
+      of randomly-chosen points. The result is sorted. *)
   val sample_distances: int -> P.t array -> float array
 
   (** [nearest_neighbor q bst] return the distance along with the nearest

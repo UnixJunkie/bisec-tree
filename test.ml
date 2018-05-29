@@ -36,15 +36,22 @@ let array_to_file fn to_string a =
 
 (* nearest neighbor brute force search *)
 let nearest_brute_force query points =
-  let dists = A.map (fun p -> (p, P.dist query p)) points in
-  A.sort (fun (p1, d1) (p2, d2) -> compare d1 d2) dists;
-  dists.(0)
+  A.fold_left (fun (p, d) p' ->
+      let d' = P.dist query p' in
+      if d' < d then
+        (p', d')
+      else
+        (p, d)
+    ) (query, max_float) points
 
 (* all neighbors within [tol] of [query] using brute force *)
 let neighbors_brute_force query tol points =
-  let res = ref [] in
-  A.iter (fun p -> if P.dist p query <= tol then res := p :: !res) points;
-  !res
+  A.fold_left (fun acc p ->
+      if P.dist query p <= tol then
+        p :: acc
+      else
+        acc
+    ) [] points
 
 (* measure time spent in f in seconds *)
 let wall_clock_time f =

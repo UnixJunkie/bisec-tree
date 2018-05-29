@@ -57,6 +57,10 @@ sig
       in an unspecified order. *)
   val to_list: t -> P.t list
 
+  (** [length bst] return the number of elements inside [bst].
+      I.e. how many points are indexed by this [bst]. *)
+  val length: t -> int
+
   (** [is_empty bst] test if [bst] is empty. *)
   val is_empty: t -> bool
 

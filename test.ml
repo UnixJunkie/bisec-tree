@@ -69,6 +69,9 @@ let main () =
   let points = A.init nb_points (fun _ -> P.rand ()) in
   let tree_k1 = BST.(create 1 Two_bands) points in
   let tree_k50 = BST.(create 50 Two_bands points) in
+  (* check tree lengths *)
+  assert(BST.length tree_k1 = nb_points);
+  assert(BST.length tree_k50 = nb_points);
   (* check tree invariant *)
   assert(BST.check tree_k1);
   assert(BST.check tree_k50);

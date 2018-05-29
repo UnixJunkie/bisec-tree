@@ -265,6 +265,18 @@ module Make = functor (P: Point) -> struct
   let to_list t =
     to_list_loop [] t
 
+  let length t =
+    let rec loop acc = function
+      | Empty -> acc
+      | Node n ->
+        let acc' = loop acc n.right in
+        (* two vantage points --> +2 *)
+        loop (acc' + 2) n.left
+      | Bucket b ->
+        (* one vantage point --> +1 *)
+        1 + acc + (A.length b.points) in
+    loop 0 t
+
   (* dive in the tree until [max_depth] is reached
      (or you cannot go further down) then dump all points
      along with the descent path that was followed to reach them *)

@@ -17,26 +17,12 @@ end
    Iraj Kalaranti and Gerard McDonald.
    ieeexplore.ieee.org/iel5/32/35936/01703102.pdf *)
 
-type quality =
-  (* | Best (\* we use brute force to find the diameter of the point set;
-   *           of course, this will not scale in case you have many points *\) *)
-  | Good of int (* we use a heuristic to find good vp candidates *)
+(* Heuristic to find good vantage points. *)
+type vp_heuristic = One_band | Two_bands
 
 type direction = Left | Right
 
-module type Config = sig
-  (* The data structure is parametrized by k:
-     if there are n <= k points left, we put them
-     all in the same bucket. Else, we continue constructing
-     the tree recursively.
-     This should save storage space and accelerate queries.
-     The best value for k is probably dataset and application dependent.
-     k = 0 => the tree is not bucketized *)
-  val k: int (* bucket size *)
-  val q: quality
-end
-
-module Make = functor (P: Point) (C: Config) -> struct
+module Make = functor (P: Point) -> struct
 
   type bucket = { vp: P.t; (* vantage point *)
                   sup: float; (* max dist to vp among bucket points *)
@@ -130,7 +116,7 @@ module Make = functor (P: Point) (C: Config) -> struct
      "Near Neighbor Search in Large Metric Spaces", Sergey Brin, VLDB 1995. *)
 
   (* choose one vp randomly, the furthest point from it is the other vp *)
-  let one_band (points: P.t array) =
+  let one_band (k: int) (points: P.t array) =
     let n = Array.length points in
     if n = 0 then Pre_empty
     else if n = 1 then Pre_bucket { vp = points.(0); points = [||] }
@@ -142,7 +128,7 @@ module Make = functor (P: Point) (C: Config) -> struct
       let vp2 = enr_points.(n - 1).p in
       (* we bucketize because there are not enough points left, or because
        * it is not possible to bisect space further *)
-      if n <= C.k || P.dist vp1 vp2 = 0.0 then
+      if n <= k || P.dist vp1 vp2 = 0.0 then
         (* we use vp2 to index the bucket: vp2 is supposed to be good
            while vp1 is random *)
         let enr_rem = A.sub enr_points 0 (n - 1) in
@@ -155,7 +141,7 @@ module Make = functor (P: Point) (C: Config) -> struct
         let rem = Array.map (enr2 vp2) enr_rem in
         Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
 
-  let two_bands (points: P.t array) =
+  let two_bands (k: int) (points: P.t array) =
     let n = Array.length points in
     if n = 0 then Pre_empty
     else if n = 1 then Pre_bucket { vp = points.(0); points = [||] }
@@ -171,7 +157,7 @@ module Make = functor (P: Point) (C: Config) -> struct
       let vp2 = enr_points1.(n - 1).p in
       (* we bucketize because there are not enough points left, or because
        * it is not possible to bisect space further *)
-      if n <= C.k || P.dist vp1 vp2 = 0.0 then
+      if n <= k || P.dist vp1 vp2 = 0.0 then
         (* we use vp2 to index the bucket *)
         let enr_rem = A.sub enr_points1 0 (n - 1) in
         let rem = Array.map (enr2 vp2) enr_rem in
@@ -182,13 +168,6 @@ module Make = functor (P: Point) (C: Config) -> struct
         let enr_rem = A.sub enr_points1 1 (n - 2) in
         let rem = Array.map (enr2 vp2) enr_rem in
         Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
-
-  let heuristic = match C.q with
-    | Good 1 -> one_band
-    | Good 2 -> two_bands
-    | Good n ->
-      failwith (sprintf "heuristic: not implemented yet: Good %d" n)
-  (* | Best -> failwith "heuristic: not implemented yet: Best" *)
 
   (* sample distances between all distinct points in a sample.
      The result is sorted. *)
@@ -211,76 +190,77 @@ module Make = functor (P: Point) (C: Config) -> struct
     A.sort fcmp distances;
     distances
 
-  let rec create (points: P.t array): t =
-    match heuristic points with
-    | Pre_empty -> Empty
-    | Pre_bucket b ->
-      Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
-    | Pre_node pn ->
-      (* points to the left are strictly closer to l_vp
-         than points to the right *)
-      let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
-      Node { l_vp = pn.l_vp;
-             l_sup = max1 lpoints;
-             r_vp = pn.r_vp;
-             r_sup = max2 rpoints;
-             left = create (strip2 lpoints);
-             right = create (strip2 rpoints) }
+  let create (k: int) (h: vp_heuristic) (points': P.t array): t =
+    let heuristic = match h with
+      | One_band -> one_band
+      | Two_bands -> two_bands in
+    let rec loop points = match heuristic k points with
+      | Pre_empty -> Empty
+      | Pre_bucket b ->
+        Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
+      | Pre_node pn ->
+        (* points to the left are strictly closer to l_vp
+           than points to the right *)
+        let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
+        Node { l_vp = pn.l_vp;
+               l_sup = max1 lpoints;
+               r_vp = pn.r_vp;
+               r_sup = max2 rpoints;
+               left = loop (strip2 lpoints);
+               right = loop (strip2 rpoints) } in
+    loop points'
 
-  (*
-  (* base two log *)
-  let log_2 (x: float): float =
-    (log x) /. (log 2.0)
-
-  let parmap ~ncores f l =
-    Parmap.parmap ~ncores ~chunksize:1 f (Parmap.L l)
-
-  (* parallel tree construction, with up to [nprocs] at the same time *)
-  let par_create (nprocs: int) (points': P.t array): t =
-    let power_f = log_2 (float nprocs) in
-    let power_frac, power_integral = modf power_f in
-    if power_frac <> 0.0 then
-      failwith (sprintf "Bisec_tree.par_create: nprocs not a power of two: %d"
-                  nprocs)
-    else
-      let power = int_of_float power_integral in
-      let rec loop depth points =
-        match heuristic points with
-        | Pre_empty -> Empty
-        | Pre_bucket b ->
-          Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
-        | Pre_node pn ->
-          let lpoints, rpoints =
-            (* points to the left are strictly closer to l_vp
-               than points to the right *)
-            A.partition (fun p -> p.d1 < p.d2) pn.points in
-          let depth' = depth + 1 in
-          if depth < power then
-            (* we label points with Left and Right because parmap
-             * (with chunksize) may return results in an arbitrary order *)
-            begin match parmap ~ncores:2
-                          (fun (dir, ps) -> (dir, loop depth' (strip2 ps)))
-                          [(Left, lpoints); (Right, rpoints)] with
-            | [(Left, left); (Right, right)]
-            | [(Right, right); (Left, left)] ->
-              Node { l_vp = pn.l_vp;
-                     l_sup = max1 lpoints;
-                     r_vp = pn.r_vp;
-                     r_sup = max2 rpoints;
-                     left;
-                     right }
-            | _ -> assert(false)
-            end
-          else (* depth >= power: stop forking *)
-            Node { l_vp = pn.l_vp;
-                   l_sup = max1 lpoints;
-                   r_vp = pn.r_vp;
-                   r_sup = max2 rpoints;
-                   left = create (strip2 lpoints);
-                   right = create (strip2 rpoints) } in
-      loop 0 points'
-
-*)
+  (* (\* base two log *\)
+   * let log_2 (x: float): float =
+   *   (log x) /. (log 2.0)
+   * 
+   * let parmap ~ncores f l =
+   *   Parmap.parmap ~ncores ~chunksize:1 f (Parmap.L l)
+   * 
+   * (\* parallel tree construction, with up to [nprocs] at the same time *\)
+   * let par_create (nprocs: int) (points': P.t array): t =
+   *   let power_f = log_2 (float nprocs) in
+   *   let power_frac, power_integral = modf power_f in
+   *   if power_frac <> 0.0 then
+   *     failwith (sprintf "Bisec_tree.par_create: nprocs not a power of two: %d"
+   *                 nprocs)
+   *   else
+   *     let power = int_of_float power_integral in
+   *     let rec loop depth points =
+   *       match heuristic points with
+   *       | Pre_empty -> Empty
+   *       | Pre_bucket b ->
+   *         Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
+   *       | Pre_node pn ->
+   *         let lpoints, rpoints =
+   *           (\* points to the left are strictly closer to l_vp
+   *              than points to the right *\)
+   *           A.partition (fun p -> p.d1 < p.d2) pn.points in
+   *         let depth' = depth + 1 in
+   *         if depth < power then
+   *           (\* we label points with Left and Right because parmap
+   *            * (with chunksize) may return results in an arbitrary order *\)
+   *           begin match parmap ~ncores:2
+   *                         (fun (dir, ps) -> (dir, loop depth' (strip2 ps)))
+   *                         [(Left, lpoints); (Right, rpoints)] with
+   *           | [(Left, left); (Right, right)]
+   *           | [(Right, right); (Left, left)] ->
+   *             Node { l_vp = pn.l_vp;
+   *                    l_sup = max1 lpoints;
+   *                    r_vp = pn.r_vp;
+   *                    r_sup = max2 rpoints;
+   *                    left;
+   *                    right }
+   *           | _ -> assert(false)
+   *           end
+   *         else (\* depth >= power: stop forking *\)
+   *           Node { l_vp = pn.l_vp;
+   *                  l_sup = max1 lpoints;
+   *                  r_vp = pn.r_vp;
+   *                  r_sup = max2 rpoints;
+   *                  left = create (strip2 lpoints);
+   *                  right = create (strip2 rpoints) } in
+   *     loop 0 points' *)
 
   (* to_list with an acc *)
   let rec to_list_loop acc = function

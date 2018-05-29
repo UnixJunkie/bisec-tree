@@ -16,80 +16,7 @@ module P = struct
     (Random.State.float rng 1.0, Random.State.float rng 1.0)
 end
 
-let qual1 = Bst.Bisec_tree.Good 1
-let qual2 = Bst.Bisec_tree.Good 2
-
-module C = struct
-  let k = 50
-  let q = qual2
-end
-module BST = Bst.Bisec_tree.Make (P) (C)
-
-module C0 = struct
-  let k = 0
-  let q = qual2
-end
-module BST0 = Bst.Bisec_tree.Make (P) (C0)
-
-module C1 = struct
-  let k = 1
-  let q = qual2
-end
-module BST1 = Bst.Bisec_tree.Make (P) (C1)
-
-module C2 = struct
-  let k = 2
-  let q = qual2
-end
-module BST2 = Bst.Bisec_tree.Make (P) (C2)
-
-module C5 = struct
-  let k = 5
-  let q = qual2
-end
-module BST5 = Bst.Bisec_tree.Make (P) (C5)
-
-module C10 = struct
-  let k = 10
-  let q = qual2
-end
-module BST10 = Bst.Bisec_tree.Make (P) (C10)
-
-module C20 = struct
-  let k = 20
-  let q = qual2
-end
-module BST20 = Bst.Bisec_tree.Make (P) (C20)
-
-module C50 = struct
-  let k = 50
-  let q = qual2
-end
-module BST50 = Bst.Bisec_tree.Make (P) (C50)
-
-module C100 = struct
-  let k = 100
-  let q = qual2
-end
-module BST100 = Bst.Bisec_tree.Make (P) (C100)
-
-module C200 = struct
-  let k = 200
-  let q = qual2
-end
-module BST200 = Bst.Bisec_tree.Make (P) (C200)
-
-module C500 = struct
-  let k = 500
-  let q = qual2
-end
-module BST500 = Bst.Bisec_tree.Make (P) (C500)
-
-module C1000 = struct
-  let k = 1000
-  let q = qual2
-end
-module BST1000 = Bst.Bisec_tree.Make (P) (C1000)
+module BST = Bst.Bisec_tree.Make (P)
 
 let with_out_file fn f =
   let output = open_out_bin fn in
@@ -133,43 +60,43 @@ let main () =
   (* N rand points *)
   let nb_points = 1000 in
   let points = A.init nb_points (fun _ -> P.rand ()) in
-  let tree = BST.create points in
-  let points' = A.init nb_points (fun _ -> P.rand ()) in
-  let tree' = BST.create points' in
+  let tree_k1 = BST.(create 1 Two_bands) points in
+  let tree_k50 = BST.(create 50 Two_bands points) in
   (* check tree invariant *)
-  assert(BST.check tree);
+  assert(BST.check tree_k1);
+  assert(BST.check tree_k50);
   (* check all points are in the tree *)
-  let n = L.length (BST.to_list tree) in
+  let n = L.length (BST.to_list tree_k1) in
   assert(n = nb_points);
-  (* test all points can be found back *)
+  let m = L.length (BST.to_list tree_k50) in
+  assert(n = m);
+  Log.info "testing if all points can be found...";
   assert(
     A.for_all
       (fun ((x, y) as p) ->
-         let found = BST.mem p tree in
+         let found = BST.mem p tree_k1 in
          if not found then
            Log.error "not found: %f %f" x y;
          found
       ) points
   );
-  (* test neighbors queries *)
+  Log.info "testing neighbor queries...";
   assert(
     A.for_all
       (fun ((x, y) as p) ->
          let tol = Random.State.float rng 1.0 in
          let brute_points = neighbors_brute_force p tol points in
-         let smart_points = BST.neighbors p tol tree in
+         let smart_points = BST.neighbors p tol tree_k1 in
          Log.debug "tol: %f card: %d" tol (L.length smart_points);
          L.sort compare brute_points = L.sort compare smart_points
       ) points
   );
-  (* test nearest neighbor queries *)
+  Log.info "testing NN queries...";
   assert(
     A.for_all
       (fun p ->
-         let brute_points = nearest_brute_force p points' in
-         let smart_points = BST.nearest_neighbor p tree' in
-         let p', d' = smart_points in
-         Log.debug "d': %f" d';
+         let brute_points = nearest_brute_force p points in
+         let smart_points = BST.nearest_neighbor p tree_k1 in
          brute_points = smart_points
       ) points
   );
@@ -179,34 +106,9 @@ let main () =
   let dists = BST.sample_distances 1000 many_points in
   let dists_fn = "dists_1000.txt" in
   array_to_file dists_fn string_of_float dists;
-  let dt1, big_tree = wall_clock_time (fun () -> BST.create many_points) in
+  let dt1, big_tree = wall_clock_time (fun () -> BST.(create 10 Two_bands many_points)) in
   Log.info "dt1: %f" dt1;
   assert(BST.check big_tree);
-
-  (* those take a lot of time *)
-  let tree0 = BST0.create many_points in
-  assert(BST0.check tree0);
-  let tree1 = BST1.create many_points in
-  assert(BST1.check tree1);
-  let tree2 = BST2.create many_points in
-  assert(BST2.check tree2);
-  let tree5 = BST5.create many_points in
-  assert(BST5.check tree5);
-  let tree10 = BST10.create many_points in
-  assert(BST10.check tree10);
-  let tree20 = BST20.create many_points in
-  assert(BST20.check tree20);
-  let tree50 = BST50.create many_points in
-  assert(BST50.check tree50);
-  let tree100 = BST100.create many_points in
-  assert(BST100.check tree100);
-  let tree200 = BST200.create many_points in
-  assert(BST200.check tree200);
-  let tree500 = BST500.create many_points in
-  assert(BST500.check tree500);
-  let tree1000 = BST1000.create many_points in
-  assert(BST1000.check tree1000);
-
   Log.info "NN query times";
   for i = 1 to 10 do
     let q = P.rand () in
@@ -215,7 +117,7 @@ let main () =
     let dt', res' =
       wall_clock_time (fun () -> BST.nearest_neighbor q big_tree) in
     assert(res = res');
-    Log.info "dt: %f dt': %f" dt dt'
+    Log.info "dt: %f dt': %f accel: %.1f" dt dt' (dt /. dt')
   done;
   Log.info "neighbors query times";
   for i = 1 to 10 do
@@ -227,48 +129,9 @@ let main () =
       wall_clock_time (fun () -> BST.neighbors q tol big_tree) in
     let reference = L.sort compare brute_neighbors in
     assert(reference = L.sort compare smart_neighbors);
-    Log.info "dt: %f dt': %f" dt dt';
-    (* try other BST configs *)
-    let dt0, sn0 = wall_clock_time (fun () -> BST0.neighbors q tol tree0) in
-    assert(reference = L.sort compare sn0);
-    Log.info "dt0: %f" dt0;
-    let dt1, sn1 = wall_clock_time (fun () -> BST1.neighbors q tol tree1) in
-    assert(reference = L.sort compare sn1);
-    Log.info "dt1: %f" dt1;
-    let dt2, sn2 = wall_clock_time (fun () -> BST2.neighbors q tol tree2) in
-    assert(reference = L.sort compare sn2);
-    Log.info "dt2: %f" dt2;
-    let dt5, sn5 = wall_clock_time (fun () -> BST5.neighbors q tol tree5) in
-    assert(reference = L.sort compare sn5);
-    Log.info "dt5: %f" dt5;
-    let dt10, sn10 = wall_clock_time (fun () -> BST10.neighbors q tol tree10) in
-    assert(reference = L.sort compare sn10);
-    Log.info "dt10: %f" dt10;
-    let dt20, sn20 = wall_clock_time (fun () -> BST20.neighbors q tol tree20) in
-    assert(reference = L.sort compare sn20);
-    Log.info "dt20: %f" dt20;
-    let dt50, sn50 = wall_clock_time (fun () -> BST50.neighbors q tol tree50) in
-    assert(reference = L.sort compare sn50);
-    Log.info "dt50: %f" dt50;
-    let dt100, sn100 = wall_clock_time (fun () -> BST100.neighbors q tol tree100)
-    in
-    assert(reference = L.sort compare sn100);
-    Log.info "dt100: %f" dt100;
-    let dt200, sn200 = wall_clock_time (fun () -> BST200.neighbors q tol tree200)
-    in
-    assert(reference = L.sort compare sn200);
-    Log.info "dt200: %f" dt200;
-    let dt500, sn500 = wall_clock_time (fun () -> BST500.neighbors q tol tree500)
-    in
-    assert(reference = L.sort compare sn500);
-    Log.info "dt500: %f" dt500;
-    let dt1000, sn1000 =
-      wall_clock_time (fun () -> BST1000.neighbors q tol tree1000) in
-    assert(reference = L.sort compare sn1000);
-    Log.info "dt1000: %f" dt1000
-  done;
-  ()
+    Log.info "dt: %f dt': %f accel: %.1f" dt dt' (dt /. dt');
+  done
 
-(* FBR: count number of calls to dist using an observed distance *)
+(* FBR: count number of calls to dist using an observed distance? *)
 
 let () = main ()

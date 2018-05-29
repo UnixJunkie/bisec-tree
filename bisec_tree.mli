@@ -26,7 +26,7 @@ sig
   type t
 
   (** [create points] create the BST containing all [points]. *)
-  val create: P.t array -> t
+  val create: int -> vp_heuristic -> P.t array -> t
 
   (*
   (** [par_create nprocs points] compute in parallel and using up to [nprocs]

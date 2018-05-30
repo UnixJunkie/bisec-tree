@@ -30,3 +30,15 @@ let partition p a =
          incr k)
     done;
     (ok, ko)
+
+exception Break
+
+(* to compile with versions of the stdlib <= 4.02.3 *)
+let for_all p a =
+  try
+    let n = length a in
+    for i = 0 to n - 1 do
+      if not (p (unsafe_get a i)) then raise Break
+    done;
+    true
+  with Break -> false

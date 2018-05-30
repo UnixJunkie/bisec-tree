@@ -1,6 +1,6 @@
 open Printf
 
-module A = Array
+module A = MyArray
 module L = BatList
 
 let square x =

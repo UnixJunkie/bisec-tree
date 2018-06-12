@@ -25,16 +25,16 @@ sig
   (** A Bisector Tree (BST). *)
   type t
 
-  (** [create points] create the BST containing all [points]. *)
+  (** [create k h points] create the BST containing all [points],
+      using bucket size [k] and heuristic [h]. *)
   val create: int -> vp_heuristic -> P.t array -> t
 
+  (** [par_create nprocs k h points] create in parallel
+      the BST containing all [points],
+      using bucket size [k] and heuristic [h].
+      [nprocs] must be a power of two.
+      Be warned that scalability is extremely poor. *)
   val par_create: int -> int -> vp_heuristic -> P.t array -> t
-
-  (*
-  (** [par_create nprocs points] compute in parallel and using up to [nprocs]
-      the BST containing all [points]. [nprocs] _must_ be a power of two. *)
-  val par_create: int -> P.t array -> t
-*)
 
   (** [sample_distances n points] get distances found in [n] pairs
       of randomly-chosen points. The result is sorted. *)

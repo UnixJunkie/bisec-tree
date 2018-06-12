@@ -60,8 +60,6 @@ module Make = functor (P: Point) -> struct
 
   let rng = Random.State.make_self_init ()
 
-  let () = Parmap.disable_core_pinning ()
-
   (* n must be > 0 *)
   let rand_int n =
     Random.State.int rng n
@@ -218,6 +216,10 @@ module Make = functor (P: Point) -> struct
                right = loop (strip2 rpoints) } in
     loop points'
 
+  (* 2^{n} *)
+  let two_exp n =
+    int_of_float (2.0 ** (float_of_int n))
+
   let par_create (nprocs: int) (k: int) (h: vp_heuristic) (points': P.t array): t =
     if nprocs <= 1 then
       create k h points'
@@ -232,13 +234,38 @@ module Make = functor (P: Point) -> struct
         | Pre_node pn ->
           (* points to the left are strictly closer to l_vp
              than points to the right *)
-          let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
-          Node { l_vp = pn.l_vp;
-                 l_sup = max1 lpoints;
-                 r_vp = pn.r_vp;
-                 r_sup = max2 rpoints;
-                 left = loop (depth + 1) (strip2 lpoints);
-                 right = loop (depth + 1) (strip2 rpoints) } in
+          let lefties, righties = A.partition (fun p -> p.d1 < p.d2) pn.points in
+          if two_exp (depth + 1) <= nprocs then
+            let () = printf "nprocs: %d depth: %d 2^%d=%d fork()\n%!"
+                nprocs depth depth (two_exp depth) in
+            let sub_trees =
+              (* we will have children that fork *)
+              let () = Parmap.disable_core_pinning () in
+              (* parmap with chunksize can disorder results *)
+              Parmap.parmap ~ncores:nprocs ~chunksize:1 (function
+                  | (Left, lpoints) -> (Left, max1 lpoints, loop (depth + 1) (strip2 lpoints))
+                  | (Right, rpoints) -> (Right, max2 rpoints, loop (depth + 1) (strip2 rpoints))
+                ) (Parmap.L [(Left, lefties); (Right, righties)]) in
+            begin match sub_trees with
+              | [(Left, l_sup, left); (Right, r_sup, right)]
+              | [(Right, r_sup, right); (Left, l_sup, left)] ->
+                Node { l_vp = pn.l_vp;
+                       l_sup;
+                       r_vp = pn.r_vp;
+                       r_sup;
+                       left;
+                       right }
+              | _ -> assert(false)
+            end
+          else
+            let () = printf "nprocs: %d depth: %d 2^%d=%d seq\n%!"
+                nprocs depth depth (two_exp depth) in
+            Node { l_vp = pn.l_vp;
+                   l_sup = max1 lefties;
+                   r_vp = pn.r_vp;
+                   r_sup = max2 righties;
+                   left = loop (depth + 1) (strip2 lefties);
+                   right = loop (depth + 1) (strip2 righties) } in
       loop 0 points'
 
   (* to_list with an acc *)

@@ -236,30 +236,22 @@ module Make = functor (P: Point) -> struct
              than points to the right *)
           let lefties, righties = A.partition (fun p -> p.d1 < p.d2) pn.points in
           if two_exp (depth + 1) <= nprocs then
-            let () = printf "nprocs: %d depth: %d 2^%d=%d fork()\n%!"
-                nprocs depth depth (two_exp depth) in
-            let sub_trees =
-              (* we will have children that fork *)
-              let () = Parmap.disable_core_pinning () in
-              (* parmap with chunksize can disorder results *)
-              Parmap.parmap ~ncores:nprocs ~chunksize:1 (function
-                  | (Left, lpoints) -> (Left, max1 lpoints, loop (depth + 1) (strip2 lpoints))
-                  | (Right, rpoints) -> (Right, max2 rpoints, loop (depth + 1) (strip2 rpoints))
-                ) (Parmap.L [(Left, lefties); (Right, righties)]) in
-            begin match sub_trees with
-              | [(Left, l_sup, left); (Right, r_sup, right)]
-              | [(Right, r_sup, right); (Left, l_sup, left)] ->
-                Node { l_vp = pn.l_vp;
-                       l_sup;
-                       r_vp = pn.r_vp;
-                       r_sup;
-                       left;
-                       right }
-              | _ -> assert(false)
-            end
+            (* let () = printf "nprocs: %d depth: %d 2^%d=%d fork()\n%!"
+             *     nprocs depth depth (two_exp depth) in *)
+            let (l_sup, left), (r_sup, right) =
+              Parpair.mapfg nprocs
+                (fun lpoints -> (max1 lpoints, loop (depth + 1) (strip2 lpoints)))
+                (fun rpoints -> (max2 rpoints, loop (depth + 1) (strip2 rpoints)))
+                lefties righties in
+            Node { l_vp = pn.l_vp;
+                   l_sup;
+                   r_vp = pn.r_vp;
+                   r_sup;
+                   left;
+                   right }
           else
-            let () = printf "nprocs: %d depth: %d 2^%d=%d seq\n%!"
-                nprocs depth depth (two_exp depth) in
+            (* let () = printf "nprocs: %d depth: %d 2^%d=%d seq\n%!"
+             *     nprocs depth depth (two_exp depth) in *)
             Node { l_vp = pn.l_vp;
                    l_sup = max1 lefties;
                    r_vp = pn.r_vp;

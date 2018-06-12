@@ -7,6 +7,6 @@
   (libraries (parpair))))
 
 (executables
- ((names     (test dump pp_test))
+ ((names     (test dump))
   (modules (test dump))
   (libraries (unix dolog batteries minicli bst))))

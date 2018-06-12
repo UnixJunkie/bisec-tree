@@ -25,9 +25,8 @@ sig
   (** A Bisector Tree (BST). *)
   type t
 
-  (** [create nprocs points] create the BST containing all [points]
-      in parallel using [nprocs]. *)
-  val create: int -> int -> vp_heuristic -> P.t array -> t
+  (** [create points] create the BST containing all [points]. *)
+  val create: int -> vp_heuristic -> P.t array -> t
 
   (*
   (** [par_create nprocs points] compute in parallel and using up to [nprocs]

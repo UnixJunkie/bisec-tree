@@ -4,9 +4,9 @@
  ((name        bst)
   (public_name bst)
   (modules (bisec_tree myArray))
-  (libraries (parmap))))
+  (libraries (parpair))))
 
 (executables
- ((names     (test dump))
+ ((names     (test dump pp_test))
   (modules (test dump))
   (libraries (unix dolog batteries minicli bst))))

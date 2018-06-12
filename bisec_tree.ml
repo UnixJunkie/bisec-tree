@@ -80,12 +80,24 @@ module Make = functor (P: Point) -> struct
   (* enrich p by distance to vp *)
   let enr (vp: P.t) (p: P.t): point1 =
     { p; d1 = P.dist vp p }
+  (* same as enr_vp but in parallel *)
+  let par_enr nprocs vp points =
+    (* FBR: Parmap.disable_core_pinning (); *)
+    let dists = Parmap.array_float_parmap ~ncores:nprocs ~chunksize:1 (P.dist vp) points in
+    A.map2 (fun p d1 -> { p; d1 }) points dists
   (* point indexed by two vantage points *)
   type point2 = { p: P.t;
                   d1: float;
                   d2: float }
   let enr2 (vp: P.t) (p: point1): point2 =
     { p = p.p; d1 = p.d1; d2 = P.dist vp p.p }
+  (* same as enr2 but in parallel *)
+  let par_enr2 (nprocs: int) (vp: P.t) (points: point1 array): point2 array =
+    let dists =
+      Parmap.array_float_parmap ~ncores:nprocs ~chunksize:1
+        (fun (p: point1) -> P.dist vp p.p) points in
+    A.map2 (fun (p: point1) (d2: float) -> { p = p.p; d1 = p.d1; d2 })
+      points dists
   let strip2 (points: point2 array): P.t array =
     A.map (fun x -> x.p) points
   (* return max dist to vp1 *)
@@ -123,7 +135,6 @@ module Make = functor (P: Point) -> struct
     else
       let i = rand_int n in
       let vp = points.(i) in
-      (* let enr_points = A.map (enr vp) points in *)
       let enr_points = A.map (enr vp) points in
       A.sort point1_cmp enr_points;
       enr_points
@@ -186,6 +197,73 @@ module Make = functor (P: Point) -> struct
         let rem = A.map (enr2 vp2) enr_rem in
         Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
 
+  (* select first vp randomly, then enrich points by their distance to it;
+     output is ordered by incr. dist. to this rand vp *)
+  let par_rand_vp (nprocs: int) (points: P.t array): point1 array =
+    let n = A.length points in
+    assert(n > 0);
+    if n = 1 then [|{ p = points.(0); d1 = 0.0 }|]
+    else
+      let i = rand_int n in
+      let vp = points.(i) in
+      let enr_points = par_enr nprocs vp points in
+      A.sort point1_cmp enr_points;
+      enr_points
+
+  (* choose one vp randomly, the furthest point from it is the other vp *)
+  let par_one_band (nprocs: int) (k: int) (points: P.t array) =
+    let n = A.length points in
+    if n = 0 then Pre_empty
+    else if n = 1 then Pre_bucket { vp = points.(0); points = [||] }
+    else if n = 2 then
+      Pre_node { l_vp = points.(0); points = [||]; r_vp = points.(1) }
+    else (* n > 2 *)
+      let enr_points = par_rand_vp nprocs points in
+      let vp1 = enr_points.(0).p in
+      let vp2 = enr_points.(n - 1).p in
+      (* we bucketize because there are not enough points left, or because
+       * it is not possible to bisect space further *)
+      if n <= k || P.dist vp1 vp2 = 0.0 then
+        (* we use vp2 to index the bucket: vp2 is supposed to be good
+           while vp1 is random *)
+        let enr_rem = A.sub enr_points 0 (n - 1) in
+        let rem = par_enr2 nprocs vp2 enr_rem in
+        Pre_bucket { vp = vp2; points = rem }
+      else
+        (* remove selected vps from point array
+           and enrich points by their dist to vp2 *)
+        let enr_rem = A.sub enr_points 1 (n - 2) in
+        let rem = par_enr2 nprocs vp2 enr_rem in
+        Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
+
+  let par_two_bands (nprocs: int) (k: int) (points: P.t array) =
+    let n = A.length points in
+    if n = 0 then Pre_empty
+    else if n = 1 then Pre_bucket { vp = points.(0); points = [||] }
+    else if n = 2 then
+      Pre_node { l_vp = points.(0); points = [||]; r_vp = points.(1) }
+    else (* n > 2 *)
+      let enr_points = par_rand_vp nprocs points in
+      (* furthest from random vp *)
+      let vp = enr_points.(n - 1).p in
+      let enr_points1 = par_enr nprocs vp points in
+      A.sort point1_cmp enr_points1;
+      let vp1 = enr_points1.(0).p in
+      let vp2 = enr_points1.(n - 1).p in
+      (* we bucketize because there are not enough points left, or because
+       * it is not possible to bisect space further *)
+      if n <= k || P.dist vp1 vp2 = 0.0 then
+        (* we use vp2 to index the bucket *)
+        let enr_rem = A.sub enr_points1 0 (n - 1) in
+        let rem = par_enr2 nprocs vp2 enr_rem in
+        Pre_bucket { vp = vp2; points = rem }
+      else
+        (* remove selected vps from points array
+           and enrich points by their distance to vp2 *)
+        let enr_rem = A.sub enr_points1 1 (n - 2) in
+        let rem = par_enr2 nprocs vp2 enr_rem in
+        Pre_node { l_vp = vp1; points = rem; r_vp = vp2 }
+
   let sample_distances (sample_size: int) (points: P.t array): float array =
     let n = A.length points in
     assert(n > 0);
@@ -217,24 +295,27 @@ module Make = functor (P: Point) -> struct
     loop points'
 
   let par_create (nprocs: int) (k: int) (h: vp_heuristic) (points': P.t array): t =
-    let heuristic = match h with
-      | One_band -> one_band
-      | Two_bands -> two_bands in
-    let rec loop points = match par_heuristic nprocs k points with
-      | Pre_empty -> Empty
-      | Pre_bucket b ->
-        Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
-      | Pre_node pn ->
-        (* points to the left are strictly closer to l_vp
-           than points to the right *)
-        let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
-        Node { l_vp = pn.l_vp;
-               l_sup = max1 lpoints;
-               r_vp = pn.r_vp;
-               r_sup = max2 rpoints;
-               left = loop (strip2 lpoints);
-               right = loop (strip2 rpoints) } in
-    loop points'
+    if nprocs = 1 then
+      create k h points'
+    else
+      let par_heuristic = match h with
+        | One_band -> par_one_band
+        | Two_bands -> par_two_bands in
+      let rec loop points = match par_heuristic nprocs k points with
+        | Pre_empty -> Empty
+        | Pre_bucket b ->
+          Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
+        | Pre_node pn ->
+          (* points to the left are strictly closer to l_vp
+             than points to the right *)
+          let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
+          Node { l_vp = pn.l_vp;
+                 l_sup = max1 lpoints;
+                 r_vp = pn.r_vp;
+                 r_sup = max2 rpoints;
+                 left = loop (strip2 lpoints);
+                 right = loop (strip2 rpoints) } in
+      loop points'
 
   (* to_list with an acc *)
   let rec to_list_loop acc = function

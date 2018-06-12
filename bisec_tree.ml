@@ -22,15 +22,6 @@ type vp_heuristic = One_band | Two_bands
 
 type direction = Left | Right
 
-let dir_of_int = function
-  | 0 -> Left
-  | 1 -> Right
-  | _ -> assert(false)
-
-let int_of_dir = function
-  | Left -> 0
-  | Right -> 1
-
 module Make = functor (P: Point) -> struct
 
   type bucket = { vp: P.t; (* vantage point *)
@@ -50,13 +41,6 @@ module Make = functor (P: Point) -> struct
   and t = Empty
         | Node of node
         | Bucket of bucket
-
-  type indexed_point = Bucket_vp of P.t
-                     | Bucket_point of P.t
-                     | Left_vp of P.t
-                     | Right_vp of P.t
-
-  type point_address = direction list * indexed_point
 
   let rng = Random.State.make_self_init ()
 
@@ -123,7 +107,6 @@ module Make = functor (P: Point) -> struct
     else
       let i = rand_int n in
       let vp = points.(i) in
-      (* let enr_points = A.map (enr vp) points in *)
       let enr_points = A.map (enr vp) points in
       A.sort point1_cmp enr_points;
       enr_points

@@ -216,6 +216,26 @@ module Make = functor (P: Point) -> struct
                right = loop (strip2 rpoints) } in
     loop points'
 
+  let par_create (nprocs: int) (k: int) (h: vp_heuristic) (points': P.t array): t =
+    let heuristic = match h with
+      | One_band -> one_band
+      | Two_bands -> two_bands in
+    let rec loop points = match par_heuristic nprocs k points with
+      | Pre_empty -> Empty
+      | Pre_bucket b ->
+        Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
+      | Pre_node pn ->
+        (* points to the left are strictly closer to l_vp
+           than points to the right *)
+        let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
+        Node { l_vp = pn.l_vp;
+               l_sup = max1 lpoints;
+               r_vp = pn.r_vp;
+               r_sup = max2 rpoints;
+               left = loop (strip2 lpoints);
+               right = loop (strip2 rpoints) } in
+    loop points'
+
   (* to_list with an acc *)
   let rec to_list_loop acc = function
     | Empty -> acc

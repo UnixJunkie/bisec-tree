@@ -28,6 +28,8 @@ sig
   (** [create points] create the BST containing all [points]. *)
   val create: int -> vp_heuristic -> P.t array -> t
 
+  val par_create: int -> int -> vp_heuristic -> P.t array -> t
+
   (*
   (** [par_create nprocs points] compute in parallel and using up to [nprocs]
       the BST containing all [points]. [nprocs] _must_ be a power of two. *)

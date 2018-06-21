@@ -26,8 +26,17 @@ sig
   type t
 
   (** [create k h points] create the BST containing all [points],
-      using bucket size [k] and heuristic [h]. *)
-  val create: int -> vp_heuristic -> P.t array -> t
+      using bucket size [k] and heuristic [h].
+      You can provide an optional [progress_callback]
+      function to give some feedback to the user
+      when indexing many points. If provided, [progress_callback]
+      will be called upon progression of the indexing as
+      [progress_callback x y].
+      [x] is the current number of points that have been indexed
+      and [y] is the total number of points to index.
+      The default [progress_callback] function does nothing. *)
+  val create: ?progress_callback:(int -> int -> unit) ->
+    int -> vp_heuristic -> P.t array -> t
 
   (** [par_create nprocs k h points] create in parallel
       the BST containing all [points],

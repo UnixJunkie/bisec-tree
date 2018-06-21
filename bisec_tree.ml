@@ -98,6 +98,12 @@ module Make = functor (P: Point) -> struct
            | Pre_node of pre_node
            | Pre_empty
 
+  (* counting already indexed points *)
+  let bucket_length (b: pre_bucket): int =
+    1 + A.length b.points
+  let node_length (n: pre_node): int =
+    2 + A.length n.points
+
   (* select first vp randomly, then enrich points by their distance to it;
      output is ordered by incr. dist. to this rand vp *)
   let rand_vp (points: P.t array): point1 array =
@@ -179,18 +185,27 @@ module Make = functor (P: Point) -> struct
     A.sort fcmp distances;
     distances
 
-  let create (k: int) (h: vp_heuristic) (points': P.t array): t =
+  let create ?(progress_callback = fun _x _y -> ())
+      (k: int) (h: vp_heuristic) (points': P.t array): t =
+    let nb_points = A.length points' in
+    let indexed = ref 0 in
     let heuristic = match h with
       | One_band -> one_band
       | Two_bands -> two_bands in
     let rec loop points = match heuristic k points with
       | Pre_empty -> Empty
       | Pre_bucket b ->
-        Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
+        begin
+          indexed := !indexed + (bucket_length b);
+          progress_callback !indexed nb_points;
+          Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
+        end
       | Pre_node pn ->
         (* points to the left are strictly closer to l_vp
            than points to the right *)
         let lpoints, rpoints = A.partition (fun p -> p.d1 < p.d2) pn.points in
+        indexed := !indexed + 2;
+        progress_callback !indexed nb_points;
         Node { l_vp = pn.l_vp;
                l_sup = max1 lpoints;
                r_vp = pn.r_vp;

@@ -61,13 +61,16 @@ let wall_clock_time f =
   let delta_t = stop -. start in
   (delta_t, res)
 
+let progress_callback curr total =
+  Log.info "done: %.3f" (float curr /. float total)
+
 let main () =
   Log.color_on ();
   Log.set_log_level Log.INFO;
   (* N rand points *)
   let nb_points = 1000 in
   let points = A.init nb_points (fun _ -> P.rand ()) in
-  let tree_k1 = BST.(create 1 Two_bands) points in
+  let tree_k1 = BST.(create ~progress_callback 1 Two_bands) points in
   let tree_k50 = BST.(create 50 Two_bands points) in
   (* check tree lengths *)
   assert(BST.length tree_k1 = nb_points);
@@ -141,7 +144,5 @@ let main () =
     assert(reference = L.sort compare smart_neighbors);
     Log.info "dt: %f dt': %f accel: %.1f" dt dt' (dt /. dt');
   done
-
-(* FBR: count number of calls to dist using an observed distance? *)
 
 let () = main ()

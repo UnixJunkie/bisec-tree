@@ -22,6 +22,10 @@ type vp_heuristic = One_band | Two_bands
 
 type direction = Left | Right
 
+type path_step = L of float (* dist to l_vp *)
+               | R of float (* dist to r_vp *)
+               | B
+
 module Make = functor (P: Point) -> struct
 
   type bucket = { vp: P.t; (* vantage point *)
@@ -439,5 +443,19 @@ module Make = functor (P: Point) -> struct
   let mem query tree =
     try let _ = find query tree in true
     with Not_found -> false
+
+  (* find where 'query' would belong in 'tree' *)
+  let get_addr query tree =
+    let rec loop acc = function
+      | Empty -> L.rev acc
+      | Bucket b -> L.rev (B :: acc)
+      | Node n ->
+        let l_d = P.dist query n.l_vp in
+        let r_d = P.dist query n.r_vp in
+        if l_d < r_d then
+          loop (L l_d :: acc) n.left
+        else
+          loop (R r_d :: acc) n.right in
+    loop [] tree
 
 end

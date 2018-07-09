@@ -20,6 +20,11 @@ type vp_heuristic = One_band | Two_bands
     A path is a list of directions. *)
 type direction = Left | Right
 
+(** Part of a molecule's address in the bst. *)
+type path_step = L of float (* dist to l_vp *)
+               | R of float (* dist to r_vp *)
+               | B
+
 module Make: functor (P: Point) ->
 sig
   (** A Bisector Tree (BST). *)
@@ -104,4 +109,8 @@ sig
   (** [dump max_depth bst] list points and paths to reach
       them in the [vpt], going down up to [max_depth]. *)
   val dump: int -> t -> (direction list * P.t list) list
+
+  (** [get_addr q bst] find the address of [q] in [bst]. *)
+  val get_addr: P.t -> t -> path_step list
+
 end

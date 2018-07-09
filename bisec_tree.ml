@@ -445,6 +445,8 @@ module Make = functor (P: Point) -> struct
     with Not_found -> false
 
   (* find where 'query' would belong in 'tree' *)
+  (* FBR: test: select a point randomly in the tree,
+          then compare the address we find for it *)
   let get_addr query tree =
     let rec loop acc = function
       | Empty -> L.rev acc
@@ -457,5 +459,44 @@ module Make = functor (P: Point) -> struct
         else
           loop (R r_d :: acc) n.right in
     loop [] tree
+
+  (* add 'query' at 'addr' in 'tree' if possible, or crash if not
+     FBR: test: create a small tree, add several points to it, check invar *)
+  let add query addr tree =
+    let rec loop address = function
+      | Empty ->
+        begin match addr with
+          | [] -> Bucket { vp = query; sup = 0.0; points = [||] }
+          | _ -> assert(false) (* cannot go deeper in tree *)
+        end
+      | Bucket b ->
+        begin match addr with
+          | [] ->
+            let d = P.dist query b.vp in
+            let points = A.append b.points [|query|] in
+            Bucket { vp = b.vp; sup = max b.sup d; points }
+          | _ -> assert(false) (* cannot go deeper in tree *)
+        end
+      | Node n ->
+        begin match addr with
+          | [] -> assert(false) (* should go deeper *)
+          | B :: _ -> assert(false) (* should go left or right *)
+          | L l_d :: rest ->
+            Node { l_vp = n.l_vp;
+                   l_sup = max n.l_sup l_d;
+                   r_vp = n.r_vp;
+                   r_sup = n.r_sup;
+                   left = loop rest n.left;
+                   right = n.right }
+          | R r_d :: rest ->
+            Node { l_vp = n.l_vp;
+                   l_sup = n.l_sup;
+                   r_vp = n.r_vp;
+                   r_sup = max n.r_sup r_d;
+                   left = n.left;
+                   right = loop rest n.right }
+        end
+    in
+    loop addr tree
 
 end

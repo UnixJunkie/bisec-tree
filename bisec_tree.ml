@@ -130,15 +130,13 @@ module Make = functor (P: Point) -> struct
     let n = A.length points in
     if n = 0 then Pre_empty
     else if n = 1 then Pre_bucket { vp = points.(0); points = [||] }
-    else if n = 2 then
-      Pre_node { l_vp = points.(0); points = [||]; r_vp = points.(1) }
-    else (* n > 2 *)
+    else (* n >= 2 *)
       let enr_points = rand_vp points in
       let vp1 = enr_points.(0).p in
       let vp2 = enr_points.(n - 1).p in
       (* we bucketize because there are not enough points left, or because
        * it is not possible to bisect space further *)
-      if n <= k || P.dist vp1 vp2 = 0.0 then
+      if n = 2 || n <= k || P.dist vp1 vp2 = 0.0 then
         (* we use vp2 to index the bucket: vp2 is supposed to be good
            while vp1 is random *)
         let enr_rem = A.sub enr_points 0 (n - 1) in
@@ -155,9 +153,7 @@ module Make = functor (P: Point) -> struct
     let n = A.length points in
     if n = 0 then Pre_empty
     else if n = 1 then Pre_bucket { vp = points.(0); points = [||] }
-    else if n = 2 then
-      Pre_node { l_vp = points.(0); points = [||]; r_vp = points.(1) }
-    else (* n > 2 *)
+    else (* n >= 2 *)
       let enr_points = rand_vp points in
       (* furthest from random vp *)
       let vp = enr_points.(n - 1).p in
@@ -167,7 +163,7 @@ module Make = functor (P: Point) -> struct
       let vp2 = enr_points1.(n - 1).p in
       (* we bucketize because there are not enough points left, or because
        * it is not possible to bisect space further *)
-      if n <= k || P.dist vp1 vp2 = 0.0 then
+      if n = 2 || n <= k || P.dist vp1 vp2 = 0.0 then
         (* we use vp2 to index the bucket *)
         let enr_rem = A.sub enr_points1 0 (n - 1) in
         let rem = A.map (enr2 vp2) enr_rem in
@@ -222,7 +218,8 @@ module Make = functor (P: Point) -> struct
   let two_exp n =
     int_of_float (2.0 ** (float_of_int n))
 
-  let par_create (nprocs: int) (k: int) (h: vp_heuristic) (points': P.t array): t =
+  let par_create
+      (nprocs: int) (k: int) (h: vp_heuristic) (points': P.t array): t =
     if nprocs <= 1 then
       create k h points'
     else
@@ -236,14 +233,17 @@ module Make = functor (P: Point) -> struct
         | Pre_node pn ->
           (* points to the left are strictly closer to l_vp
              than points to the right *)
-          let lefties, righties = A.partition (fun p -> p.d1 < p.d2) pn.points in
+          let lefties, righties =
+            A.partition (fun p -> p.d1 < p.d2) pn.points in
           if two_exp (depth + 1) <= nprocs then
             (* let () = printf "nprocs: %d depth: %d 2^%d=%d fork()\n%!"
              *     nprocs depth depth (two_exp depth) in *)
             let (l_sup, left), (r_sup, right) =
               Parpair.mapfg nprocs
-                (fun lpoints -> (max1 lpoints, loop (depth + 1) (strip2 lpoints)))
-                (fun rpoints -> (max2 rpoints, loop (depth + 1) (strip2 rpoints)))
+                (fun lpoints ->
+                   (max1 lpoints, loop (depth + 1) (strip2 lpoints)))
+                (fun rpoints ->
+                   (max2 rpoints, loop (depth + 1) (strip2 rpoints)))
                 lefties righties in
             Node { l_vp = pn.l_vp;
                    l_sup;

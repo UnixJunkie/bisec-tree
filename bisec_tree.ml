@@ -235,54 +235,6 @@ module Make = functor (P: Point) -> struct
                right = loop (strip2 rpoints) } in
     loop points'
 
-  (* 2^{n} *)
-  let two_exp n =
-    int_of_float (2.0 ** (float_of_int n))
-
-  let par_create
-      (nprocs: int) (k: int) (h: vp_heuristic) (points': P.t array): t =
-    if nprocs <= 1 then
-      create k h points'
-    else
-      let heuristic = match h with
-        | One_band -> one_band
-        | Two_bands -> two_bands in
-      let rec loop depth points = match heuristic k points with
-        | Pre_empty -> Empty
-        | Pre_bucket b ->
-          Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
-        | Pre_node pn ->
-          (* points to the left are strictly closer to l_vp
-             than points to the right *)
-          let lefties, righties =
-            A.partition (fun p -> p.d1 < p.d2) pn.points in
-          if two_exp (depth + 1) <= nprocs then
-            (* let () = printf "nprocs: %d depth: %d 2^%d=%d fork()\n%!"
-             *     nprocs depth depth (two_exp depth) in *)
-            let (l_sup, left), (r_sup, right) =
-              Parpair.mapfg nprocs
-                (fun lpoints ->
-                   (max1 lpoints, loop (depth + 1) (strip2 lpoints)))
-                (fun rpoints ->
-                   (max2 rpoints, loop (depth + 1) (strip2 rpoints)))
-                lefties righties in
-            Node { l_vp = pn.l_vp;
-                   l_sup;
-                   r_vp = pn.r_vp;
-                   r_sup;
-                   left;
-                   right }
-          else
-            (* let () = printf "nprocs: %d depth: %d 2^%d=%d seq\n%!"
-             *     nprocs depth depth (two_exp depth) in *)
-            Node { l_vp = pn.l_vp;
-                   l_sup = max1 lefties;
-                   r_vp = pn.r_vp;
-                   r_sup = max2 righties;
-                   left = loop (depth + 1) (strip2 lefties);
-                   right = loop (depth + 1) (strip2 righties) } in
-      loop 0 points'
-
   (* to_list with an acc *)
   let rec to_list_loop acc = function
     | Empty -> acc
@@ -433,14 +385,16 @@ module Make = functor (P: Point) -> struct
           let d = P.dist b.vp x in
           d <= b.sup
         ) b.points
-    | Node n -> (* check bounds *)
+    | Node n -> (* check bounds and partitioning rules *)
       L.for_all (fun x -> (* lbounds *)
-          let d = P.dist n.l_vp x in
-          d <= n.l_sup
+          let l_d = P.dist n.l_vp x in
+          let r_d = P.dist n.r_vp x in
+          (l_d <= n.l_sup && l_d < r_d)
         ) (to_list n.left) &&
       L.for_all (fun x -> (* rbounds *)
-          let d = P.dist n.r_vp x in
-          d <= n.r_sup
+          let r_d = P.dist n.r_vp x in
+          let l_d = P.dist n.l_vp x in
+          (r_d <= n.r_sup && r_d <= l_d)
         ) (to_list n.right) &&
       (* check left then right *)
       check n.left && check n.right
@@ -478,7 +432,9 @@ module Make = functor (P: Point) -> struct
           loop (R r_d :: acc) n.right in
     loop [] tree
 
-  (* add 'query' at 'addr' in 'tree' if possible, or crash if not *)
+  (* add 'query' at 'addr' in 'tree' if possible, or crash if not.
+     Return a new tree where bounds on the path to the new point
+     have been updated. *)
   let add query address tree =
     let rec loop addr = function
       | Empty ->
@@ -533,5 +489,28 @@ module Make = functor (P: Point) -> struct
     let unsorted = loop [] [] t in
     let sorted = List.sort compare unsorted in
     String.concat "\n" sorted
+
+  let create_sample sample_size nprocs points =
+    let n = A.length points in
+    if n <= sample_size then
+      create 1 Two_bands points
+    else
+      begin
+        (* randomize points *)
+        BatArray.shuffle ~state:rng points;
+        let to_index = A.sub points 0 sample_size in
+        let rest_size = n - sample_size in
+        let rest = A.sub points sample_size rest_size in
+        (* create standard bst for the sample *)
+        let bst = create 1 Two_bands to_index in
+        let addr_indexes =
+          Parmap.array_parmapi ~ncores:nprocs ~chunksize:1
+            (fun i x -> (i, get_addr x bst)) rest in
+        (* add remaining points to previously built bst *)
+        A.fold_left (fun acc (i, addr) ->
+            let point = rest.(i) in
+            add point addr acc
+          ) bst addr_indexes
+      end
 
 end

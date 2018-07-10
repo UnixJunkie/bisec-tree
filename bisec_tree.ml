@@ -22,9 +22,18 @@ type vp_heuristic = One_band | Two_bands
 
 type direction = Left | Right
 
-type path_step = L of float (* dist to l_vp *)
-               | R of float (* dist to r_vp *)
-               | B
+type step = L of float (* dist to l_vp *)
+          | R of float (* dist to r_vp *)
+
+let string_of_addr addr =
+  let char_of_step = function
+    | L _ -> '0'
+    | R _ -> '1' in
+  let buff = Buffer.create 80 in
+  L.iter (fun a ->
+      Buffer.add_char buff (char_of_step a)
+    ) addr;
+  Buffer.contents buff
 
 module Make = functor (P: Point) -> struct
 
@@ -445,12 +454,9 @@ module Make = functor (P: Point) -> struct
     with Not_found -> false
 
   (* find where 'query' would belong in 'tree' *)
-  (* FBR: test: select a point randomly in the tree,
-          then compare the address we find for it *)
   let get_addr query tree =
     let rec loop acc = function
-      | Empty -> L.rev acc
-      | Bucket b -> L.rev (B :: acc)
+      | Empty | Bucket _ -> L.rev acc
       | Node n ->
         let l_d = P.dist query n.l_vp in
         let r_d = P.dist query n.r_vp in
@@ -460,8 +466,7 @@ module Make = functor (P: Point) -> struct
           loop (R r_d :: acc) n.right in
     loop [] tree
 
-  (* add 'query' at 'addr' in 'tree' if possible, or crash if not
-     FBR: test: create a small tree, add several points to it, check invar *)
+  (* add 'query' at 'addr' in 'tree' if possible, or crash if not *)
   let add query addr tree =
     let rec loop address = function
       | Empty ->
@@ -480,7 +485,6 @@ module Make = functor (P: Point) -> struct
       | Node n ->
         begin match addr with
           | [] -> assert(false) (* should go deeper *)
-          | B :: _ -> assert(false) (* should go left or right *)
           | L l_d :: rest ->
             Node { l_vp = n.l_vp;
                    l_sup = max n.l_sup l_d;

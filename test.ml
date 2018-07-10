@@ -70,7 +70,7 @@ let main () =
   (* N rand points *)
   let nb_points = 1000 in
   let points = A.init nb_points (fun _ -> P.rand ()) in
-  let tree_k1 = BST.(create ~progress_callback 1 Two_bands) points in
+  let tree_k1 = BST.(create 1 Two_bands) points in
   let tree_k50 = BST.(create 50 Two_bands points) in
   (* check tree lengths *)
   assert(BST.length tree_k1 = nb_points);
@@ -78,6 +78,17 @@ let main () =
   (* check tree invariant *)
   assert(BST.check tree_k1);
   assert(BST.check tree_k50);
+  (* addr and add test *)
+  let points_60 = A.init 60 (fun _ -> P.rand ()) in
+  let points_50 = A.sub points_60 0 50 in
+  let tree_50 = BST.(create 1 Two_bands points_50) in
+  for i = 50 to 59 do
+    let p = points_60.(i) in
+    let addr = BST.get_addr p tree_50 in
+    Log.info "addr: %s" (Bst.Bisec_tree.string_of_addr addr)
+    (* tree_100 := BST.add p addr !tree_100;
+     * assert(BST.check !tree_100) *)
+  done;
   (* check all points are in the tree *)
   let n = L.length (BST.to_list tree_k1) in
   assert(n = nb_points);
@@ -119,7 +130,8 @@ let main () =
   let dists = BST.sample_distances 1000 many_points in
   let dists_fn = "dists_1000.txt" in
   array_to_file dists_fn string_of_float dists;
-  let dt1, big_tree = wall_clock_time (fun () -> BST.(create 10 Two_bands many_points)) in
+  let dt1, big_tree =
+    wall_clock_time (fun () -> BST.(create 10 Two_bands many_points)) in
   Log.info "dt1: %f" dt1;
   assert(BST.check big_tree);
   Log.info "NN query times";

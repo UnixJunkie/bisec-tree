@@ -21,9 +21,10 @@ type vp_heuristic = One_band | Two_bands
 type direction = Left | Right
 
 (** Part of a molecule's address in the bst. *)
-type path_step = L of float (* dist to l_vp *)
-               | R of float (* dist to r_vp *)
-               | B
+type step = L of float (* dist to l_vp *)
+          | R of float (* dist to r_vp *)
+
+val string_of_addr: step list -> string
 
 module Make: functor (P: Point) ->
 sig
@@ -111,9 +112,9 @@ sig
   val dump: int -> t -> (direction list * P.t list) list
 
   (** [get_addr q bst] find the address of [q] in [bst]. *)
-  val get_addr: P.t -> t -> path_step list
+  val get_addr: P.t -> t -> step list
 
   (** [add p addr vpt] add point [p] to [vpt] at given address [addr]. *)
-  val add: P.t -> path_step list -> t -> t
+  val add: P.t -> step list -> t -> t
 
 end

@@ -8,5 +8,6 @@ license: "BSD-3"
 build: ["jbuilder" "build" "-p" name "-j" jobs]
 depends: [
   "jbuilder" {build}
-  "parpair"
+  "parmap"
+  "batteries"
 ]

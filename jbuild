@@ -4,7 +4,7 @@
  ((name        bst)
   (public_name bst)
   (modules (bisec_tree myArray))
-  (libraries (parpair))))
+  (libraries (parmap batteries))))
 
 (executables
  ((names     (test dump))

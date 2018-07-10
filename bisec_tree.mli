@@ -113,4 +113,7 @@ sig
   (** [get_addr q bst] find the address of [q] in [bst]. *)
   val get_addr: P.t -> t -> path_step list
 
+  (** [add p addr vpt] add point [p] to [vpt] at given address [addr]. *)
+  val add: P.t -> path_step list -> t -> t
+
 end

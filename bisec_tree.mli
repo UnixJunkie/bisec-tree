@@ -16,11 +16,11 @@ end
 (** Heuristic to find good vantage (reference) points. *)
 type vp_heuristic = One_band | Two_bands
 
-(** To reach a point in the vpt, you need to follow a path.
+(** To reach a point in the bst, you need to follow a path.
     A path is a list of directions. *)
 type direction = Left | Right
 
-(** Part of a molecule's address in the bst. *)
+(** Part of a point's address in the bst. *)
 type step = L of float (* dist to l_vp *)
           | R of float (* dist to r_vp *)
 
@@ -108,16 +108,18 @@ sig
   val inspect: t -> P.t list
 
   (** [dump max_depth bst] list points and paths to reach
-      them in the [vpt], going down up to [max_depth]. *)
+      them in the [bst], going down up to [max_depth]. *)
   val dump: int -> t -> (direction list * P.t list) list
 
   (** [get_addr q bst] find the address of [q] in [bst]. *)
   val get_addr: P.t -> t -> step list
 
-  (** [add p addr vpt] add point [p] to [vpt] at given address [addr]. *)
+  (** [add p addr bst] add point [p] to [bst] at given address [addr].
+      [addr] _must_ be a valid address in [bst]. Call
+      [get_addr p bst] to get a valid address for [p] in [bst]. *)
   val add: P.t -> step list -> t -> t
 
-  (** [to_string vpt] create a string representation/summary for [vpt] *)
+  (** [to_string bst] create a string representation/summary for [bst] *)
   val to_string: t -> string
 
 end

@@ -117,4 +117,7 @@ sig
   (** [add p addr vpt] add point [p] to [vpt] at given address [addr]. *)
   val add: P.t -> step list -> t -> t
 
+  (** [to_string vpt] create a string representation/summary for [vpt] *)
+  val to_string: t -> string
+
 end

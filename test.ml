@@ -82,13 +82,18 @@ let main () =
   let points_60 = A.init 60 (fun _ -> P.rand ()) in
   let points_50 = A.sub points_60 0 50 in
   let tree_50 = BST.(create 1 Two_bands points_50) in
+  let tree_60 = ref tree_50 in
+  Log.info "tree_50:\n%s" (BST.to_string tree_50);
   for i = 50 to 59 do
     let p = points_60.(i) in
     let addr = BST.get_addr p tree_50 in
-    Log.info "addr: %s" (Bst.Bisec_tree.string_of_addr addr)
-    (* tree_100 := BST.add p addr !tree_100;
-     * assert(BST.check !tree_100) *)
+    Log.info "addr: %s" (Bst.Bisec_tree.string_of_addr addr);
+    tree_60 := BST.add p addr !tree_60;
+    assert(BST.check !tree_60)
   done;
+  assert(BST.length tree_50 = 50);
+  assert(BST.length !tree_60 = 60);
+  Log.info "tree_60:\n%s" (BST.to_string !tree_60);
   (* check all points are in the tree *)
   let n = L.length (BST.to_list tree_k1) in
   assert(n = nb_points);

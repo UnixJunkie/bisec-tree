@@ -35,6 +35,16 @@ let string_of_addr addr =
     ) addr;
   Buffer.contents buff
 
+let string_of_path path =
+  let char_of_dir = function
+    | Left -> '0'
+    | Right -> '1' in
+  let buff = Buffer.create 80 in
+  L.iter (fun d ->
+      Buffer.add_char buff (char_of_dir d)
+    ) path;
+  Buffer.contents buff
+
 module Make = functor (P: Point) -> struct
 
   type bucket = { vp: P.t; (* vantage point *)
@@ -112,9 +122,11 @@ module Make = functor (P: Point) -> struct
            | Pre_empty
 
   (* counting already indexed points *)
-  let bucket_length (b: pre_bucket): int =
+  let pre_bucket_length (b: pre_bucket): int =
     1 + A.length b.points
-  let node_length (n: pre_node): int =
+  let bucket_length (b: bucket): int =
+    1 + A.length b.points
+  let pre_node_length (n: pre_node): int =
     2 + A.length n.points
 
   (* select first vp randomly, then enrich points by their distance to it;
@@ -205,7 +217,7 @@ module Make = functor (P: Point) -> struct
       | Pre_empty -> Empty
       | Pre_bucket b ->
         begin
-          indexed := !indexed + (bucket_length b);
+          indexed := !indexed + (pre_bucket_length b);
           progress_callback !indexed nb_points;
           Bucket { vp = b.vp; sup = max2 b.points; points = strip2 b.points }
         end
@@ -467,8 +479,8 @@ module Make = functor (P: Point) -> struct
     loop [] tree
 
   (* add 'query' at 'addr' in 'tree' if possible, or crash if not *)
-  let add query addr tree =
-    let rec loop address = function
+  let add query address tree =
+    let rec loop addr = function
       | Empty ->
         begin match addr with
           | [] -> Bucket { vp = query; sup = 0.0; points = [||] }
@@ -501,6 +513,25 @@ module Make = functor (P: Point) -> struct
                    right = loop rest n.right }
         end
     in
-    loop addr tree
+    loop address tree
+
+  let to_string t =
+    let rec loop path acc = function
+      | Empty ->
+        let str = sprintf "%s 0" (string_of_path (L.rev path)) in
+        str :: acc
+      | Bucket b ->
+        let str =
+          sprintf "%s %d"
+            (string_of_path (L.rev path))
+            (bucket_length b) in
+        str :: acc
+      | Node n ->
+        let acc' = loop (Left :: path) acc n.left in
+        loop (Right :: path) acc' n.right
+    in
+    let unsorted = loop [] [] t in
+    let sorted = List.sort compare unsorted in
+    String.concat "\n" sorted
 
 end

@@ -79,21 +79,21 @@ let main () =
   assert(BST.check tree_k1);
   assert(BST.check tree_k50);
   (* addr and add test *)
-  let points_60 = A.init 60 (fun _ -> P.rand ()) in
-  let points_50 = A.sub points_60 0 50 in
-  let tree_50 = BST.(create 1 Two_bands points_50) in
-  let tree_60 = ref tree_50 in
-  Log.info "tree_50:\n%s" (BST.to_string tree_50);
-  for i = 50 to 59 do
-    let p = points_60.(i) in
-    let addr = BST.get_addr p tree_50 in
-    Log.info "addr: %s" (Bst.Bisec_tree.string_of_addr addr);
-    tree_60 := BST.add p addr !tree_60;
-    assert(BST.check !tree_60)
+  let points_1000 = A.init 1000 (fun _ -> P.rand ()) in
+  let points_500 = A.sub points_1000 0 500 in
+  let tree_500 = BST.(create 1 Two_bands points_500) in
+  let tree_1000 = ref tree_500 in
+  (* Log.info "tree_500:\n%s" (BST.to_string tree_500); *)
+  for i = 500 to 999 do
+    let p = points_1000.(i) in
+    let addr = BST.get_addr p tree_500 in
+    (* Log.info "addr: %s" (Bst.Bisec_tree.string_of_addr addr); *)
+    tree_1000 := BST.add p addr !tree_1000;
+    assert(BST.check !tree_1000)
   done;
-  assert(BST.length tree_50 = 50);
-  assert(BST.length !tree_60 = 60);
-  Log.info "tree_60:\n%s" (BST.to_string !tree_60);
+  assert(BST.length tree_500 = 500);
+  assert(BST.length !tree_1000 = 1000);
+  (* Log.info "tree_1000:\n%s" (BST.to_string !tree_1000); *)
   (* check all points are in the tree *)
   let n = L.length (BST.to_list tree_k1) in
   assert(n = nb_points);

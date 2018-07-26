@@ -490,27 +490,27 @@ module Make = functor (P: Point) -> struct
     let sorted = List.sort compare unsorted in
     String.concat "\n" sorted
 
-  let create_sample sample_size nprocs points =
-    let n = A.length points in
-    if n <= sample_size then
-      create 1 Two_bands points
-    else
-      begin
-        (* randomize points *)
-        BatArray.shuffle ~state:rng points;
-        let to_index = A.sub points 0 sample_size in
-        let rest_size = n - sample_size in
-        let rest = A.sub points sample_size rest_size in
-        (* create standard bst for the sample *)
-        let bst = create 1 Two_bands to_index in
-        let addr_indexes =
-          Parmap.array_parmapi ~ncores:nprocs ~chunksize:1
-            (fun i x -> (i, get_addr x bst)) rest in
-        (* add remaining points to previously built bst *)
-        A.fold_left (fun acc (i, addr) ->
-            let point = rest.(i) in
-            add point addr acc
-          ) bst addr_indexes
-      end
+  (* let create_sample sample_size nprocs points =
+   *   let n = A.length points in
+   *   if n <= sample_size then
+   *     create 1 Two_bands points
+   *   else
+   *     begin
+   *       (\* randomize points *\)
+   *       BatArray.shuffle ~state:rng points;
+   *       let to_index = A.sub points 0 sample_size in
+   *       let rest_size = n - sample_size in
+   *       let rest = A.sub points sample_size rest_size in
+   *       (\* create standard bst for the sample *\)
+   *       let bst = create 1 Two_bands to_index in
+   *       let addr_indexes =
+   *         Parmap.array_parmapi ~ncores:nprocs ~chunksize:1
+   *           (fun i x -> (i, get_addr x bst)) rest in
+   *       (\* add remaining points to previously built bst *\)
+   *       A.fold_left (fun acc (i, addr) ->
+   *           let point = rest.(i) in
+   *           add point addr acc
+   *         ) bst addr_indexes
+   *     end *)
 
 end

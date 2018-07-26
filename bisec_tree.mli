@@ -44,11 +44,11 @@ sig
   val create: ?progress_callback:(int -> int -> unit) ->
     int -> vp_heuristic -> P.t array -> t
 
-  (** [create_sample sample_size nprocs points]
-      create a bst using only a subset of [sample_size] from [points].
-      Remaining points are adressed in parallel using [nprocs],
-      then sequentially added to the previously created bst. *)
-  val create_sample: int -> int -> P.t array -> t
+  (* (\** [create_sample sample_size nprocs points]
+   *     create a bst using only a subset of [sample_size] from [points].
+   *     Remaining points are adressed in parallel using [nprocs],
+   *     then sequentially added to the previously created bst. *\)
+   * val create_sample: int -> int -> P.t array -> t *)
 
   (** [sample_distances n points] get distances found in [n] pairs
       of randomly-chosen points. The result is sorted. *)

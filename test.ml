@@ -68,11 +68,11 @@ let main () =
   Log.color_on ();
   Log.set_log_level Log.INFO;
   (* on-line algorithm *)
-  let points_100k = A.init 100_000 (fun _ -> P.rand ()) in
-  let bst_100k = BST.create_sample 1000 16 points_100k in
-  assert(BST.length bst_100k = 100_000);
-  (* Log.info "bst_100k:\n%s" (BST.to_string bst_100k); *)
-  assert(BST.check bst_100k);
+  (* let points_100k = A.init 100_000 (fun _ -> P.rand ()) in *)
+  (* let bst_100k = BST.create_sample 1000 16 points_100k in
+   * assert(BST.length bst_100k = 100_000);
+   * (\* Log.info "bst_100k:\n%s" (BST.to_string bst_100k); *\)
+   * assert(BST.check bst_100k); *)
   (* N rand points *)
   let nb_points = 1000 in
   let points = A.init nb_points (fun _ -> P.rand ()) in

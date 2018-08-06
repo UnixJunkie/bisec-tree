@@ -155,9 +155,10 @@ module Make = functor (P: Point) -> struct
       let enr_points = rand_vp points in
       let vp1 = enr_points.(0).p in
       let vp2 = enr_points.(n - 1).p in
+      let lr_gap = enr_points.(n - 1).d1 in
       (* we bucketize because there are not enough points left, or because
        * it is not possible to bisect space further *)
-      if n = 2 || n <= k || P.dist vp1 vp2 = 0.0 then
+      if n = 2 || n <= k || lr_gap = 0.0 then
         (* we use vp2 to index the bucket: vp2 is supposed to be good
            while vp1 is random *)
         let enr_rem = A.sub enr_points 0 (n - 1) in
@@ -182,9 +183,10 @@ module Make = functor (P: Point) -> struct
       A.sort point1_cmp enr_points1;
       let vp1 = enr_points1.(0).p in
       let vp2 = enr_points1.(n - 1).p in
+      let lr_gap = enr_points1.(n - 1).d1 in
       (* we bucketize because there are not enough points left, or because
        * it is not possible to bisect space further *)
-      if n = 2 || n <= k || P.dist vp1 vp2 = 0.0 then
+      if n = 2 || n <= k || lr_gap = 0.0 then
         (* we use vp2 to index the bucket *)
         let enr_rem = A.sub enr_points1 0 (n - 1) in
         let rem = A.map (enr2 vp2) enr_rem in

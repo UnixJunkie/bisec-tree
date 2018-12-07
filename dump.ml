@@ -1,6 +1,6 @@
 open Printf
 
-module A = Bst.MyArray
+module A = BatArray
 module L = BatList
 
 let square x =
@@ -13,20 +13,16 @@ module P3D = struct
   let dist (x, y, z) (x', y', z') =
     sqrt (square (x -. x') +. square (y -. y') +. square (z -. z'))
   let rand () =
-    (Random.State.float rng 1.0, Random.State.float rng 1.0, Random.State.float rng 1.0)
+    (Random.State.float rng 1.0,
+     Random.State.float rng 1.0,
+     Random.State.float rng 1.0)
   let of_string s =
     Scanf.sscanf s "%f %f %f" (fun x y z -> x, y, z)
   let to_string (x, y, z) =
     sprintf "%f %f %f" x y z
 end
 
-let qual2 = Bst.Bisec_tree.Good 2
-
-module C = struct
-  let k = 10
-  let q = qual2
-end
-module BST = Bst.Bisec_tree.Make (P3D) (C)
+module BST = Bst.Bisec_tree.Make (P3D)
 
 let with_in_file fn f =
   let input = open_in_bin fn in
@@ -54,12 +50,12 @@ let string_of_path p =
   Buffer.contents buff
 
 let main () =
-  let argc, args = CLI.init () in
+  let _argc, args = CLI.init () in
   let input_fn = CLI.get_string ["-i"] args in
   let depth = CLI.get_int ["-d"] args in
   let point_lines = lines_of_file input_fn in
   let points = L.map P3D.of_string point_lines in
-  let tree = BST.create (A.of_list points) in
+  let tree = BST.(create 10 Bst.Bisec_tree.Two_bands (A.of_list points)) in
   let dump = BST.dump depth tree in
   L.iter (fun (path, points) ->
       let p_str = string_of_path path in

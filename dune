@@ -1,8 +1,7 @@
 (library
   (name        bst)
   (public_name bst)
-  (modules bisec_tree myArray)
-  (private_modules myArray)
+  (modules bisec_tree)
   (libraries batteries))
 
 (executables

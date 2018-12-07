@@ -1,6 +1,6 @@
 open Printf
 
-module A = Bst.MyArray
+module A = BatArray
 module L = List
 
 let square x =
@@ -118,7 +118,7 @@ let main () =
   Log.info "testing neighbor queries...";
   assert(
     A.for_all
-      (fun ((x, y) as p) ->
+      (fun p ->
          let tol = Random.State.float rng 1.0 in
          let brute_points = neighbors_brute_force p tol points in
          let smart_points = BST.neighbors p tol tree_k1 in
@@ -146,7 +146,7 @@ let main () =
   Log.info "dt1: %f" dt1;
   assert(BST.check big_tree);
   Log.info "NN query times";
-  for i = 1 to 10 do
+  for _ = 1 to 10 do
     let q = P.rand () in
     let dt, res =
       wall_clock_time (fun () -> nearest_brute_force q many_points) in
@@ -156,7 +156,7 @@ let main () =
     Log.info "dt: %f dt': %f accel: %.1f" dt dt' (dt /. dt')
   done;
   Log.info "neighbors query times";
-  for i = 1 to 10 do
+  for _ = 1 to 10 do
     let q = P.rand () in
     let tol = 0.1 in
     let dt, brute_neighbors =

@@ -126,8 +126,6 @@ module Make = functor (P: Point) -> struct
     1 + A.length b.points
   let bucket_length (b: bucket): int =
     1 + A.length b.points
-  let pre_node_length (n: pre_node): int =
-    2 + A.length n.points
 
   (* select first vp randomly, then enrich points by their distance to it;
      output is ordered by incr. dist. to this rand vp *)
@@ -305,7 +303,7 @@ module Make = functor (P: Point) -> struct
 
   (* nearest point to query point *)
   let nearest_neighbor query tree =
-    let rec loop ((x, d) as acc) = function
+    let rec loop ((_x, d) as acc) = function
       | Empty -> acc
       | Bucket b ->
         let b_d = P.dist query b.vp in

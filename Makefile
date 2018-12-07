@@ -1,21 +1,23 @@
-.PHONY: test install doc uninstall clean
+.PHONY: test install uninstall reinstall doc clean
 
 all:
-	jbuilder build @install
+	dune build @install
 
 test:
-	jbuilder build test.exe
-	./_build/default/test.exe
+	dune build test.exe
+	_build/default/test.exe
 
 install: all
-	jbuilder install
+	dune install
+
+uninstall:
+	dune uninstall
+
+reinstall: install reinstall
 
 doc:
 	mkdir -p doc
 	ocamldoc -html -d doc bisec_tree.mli
-
-uninstall:
-	jbuilder uninstall
 
 clean:
 	rm -rf _build

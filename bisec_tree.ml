@@ -1,7 +1,7 @@
 
 open Printf
 
-module A = MyArray
+module A = BatArray
 module L = List
 
 (* Functorial interface *)

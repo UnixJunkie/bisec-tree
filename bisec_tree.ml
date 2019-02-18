@@ -339,15 +339,15 @@ module Make = functor (P: Point) -> struct
       | Empty -> acc
       | Bucket b ->
         let b_d = P.dist query b.vp in
-        let acc' = if b_d <= tol then b.vp :: acc else acc in
         (* should we inspect bucket points? *)
-        if b_d -. b.sup > tol then acc' (* no *)
-        else if b_d +. b.sup <= tol then
-          (* all remaining points are OK *)
+        if b_d -. b.sup > tol then acc (* no *)
+        (* are all remaining points included? *)
+        else if b_d +. b.sup <= tol then (* yes *)
           A.fold_left (fun accu x ->
               x :: accu
-            ) acc' b.points
+            ) (b.vp :: acc) b.points
         else (* we need to inspect the bucket *)
+          let acc' = if b_d <= tol then b.vp :: acc else acc in
           A.fold_left (fun acc'' y ->
               let y_d = P.dist query y in
               if y_d <= tol then y :: acc'' else acc''

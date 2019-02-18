@@ -53,6 +53,14 @@ let neighbors_brute_force query tol points =
         acc
     ) [] points
 
+let partition_brute_force query tol points =
+  A.fold_left (fun (ok, ko) p ->
+      if P.dist query p <= tol then
+        (p :: ok, ko)
+      else
+        (ok, p :: ko)
+    ) ([], []) points
+
 (* measure time spent in f in seconds *)
 let wall_clock_time f =
   let start = Unix.gettimeofday () in
@@ -124,6 +132,22 @@ let main () =
          let smart_points = BST.neighbors p tol tree_k1 in
          Log.debug "tol: %f card: %d" tol (L.length smart_points);
          L.sort compare brute_points = L.sort compare smart_points
+      ) points
+  );
+  Log.info "testing partition...";
+  assert(
+    A.for_all
+      (fun p ->
+         let tol = Random.State.float rng 1.0 in
+         let ok_brute, ko_brute = partition_brute_force p tol points in
+         let ok_smart = BST.neighbors p tol tree_k1 in
+         let ok, ko = BST.partition p tol tree_k1 in
+         let nok, nko = L.(length ok, length ko) in
+         Log.debug "tol: %f card: %d" tol nko;
+         assert(nok + nko = nb_points);
+         (L.sort compare ok_brute = L.sort compare ok) &&
+         (L.sort compare ok = L.sort compare ok_smart) &&
+         (L.sort compare ko_brute = L.sort compare ko)
       ) points
   );
   Log.info "testing NN queries...";

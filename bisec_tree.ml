@@ -343,9 +343,7 @@ module Make = functor (P: Point) -> struct
         if b_d -. b.sup > tol then acc (* no *)
         (* are all remaining points included? *)
         else if b_d +. b.sup <= tol then (* yes *)
-          A.fold_left (fun accu x ->
-              x :: accu
-            ) (b.vp :: acc) b.points
+          to_list_loop acc (Bucket b)
         else (* we need to inspect the bucket *)
           let acc' = if b_d <= tol then b.vp :: acc else acc in
           A.fold_left (fun acc'' y ->
@@ -354,27 +352,87 @@ module Make = functor (P: Point) -> struct
             ) acc' b.points
       | Node n ->
         let l_d = P.dist query n.l_vp in
-        let acc' = if l_d <= tol then n.l_vp :: acc else acc in
         (* should we dive left? *)
         let acc'' =
-          if l_d -. n.l_sup > tol then acc' (* no *)
+          if l_d -. n.l_sup > tol then acc (* no *)
           else if l_d +. n.l_sup <= tol then
-            (* all remaining points are OK *)
-            to_list_loop acc' n.left
+            (* all remaining points are included *)
+            to_list_loop (n.l_vp :: acc) n.left
           else
             (* need to inspect further *)
+            let acc' = if l_d <= tol then n.l_vp :: acc else acc in
             loop acc' n.left in
         (* should we dive right? *)
         let r_d = P.dist query n.r_vp in
-        let acc''' = if r_d <= tol then n.r_vp :: acc'' else acc'' in
-        if r_d -. n.r_sup > tol then acc''' (* no *)
+        if r_d -. n.r_sup > tol then acc'' (* no *)
         else if r_d +. n.r_sup <= tol then
-          (* all remaining points are OK *)
-          to_list_loop acc''' n.right
+          (* all remaining points are included *)
+          to_list_loop (n.r_vp :: acc'') n.right
         else
           (* need to inspect further *)
+          let acc''' = if r_d <= tol then (n.r_vp :: acc'') else acc'' in
           loop acc''' n.right in
     loop [] tree
+
+  (* all points [x] such that [P.dist query x <= tol] and
+     all points [y] such that [P.dist query y > tol] *)
+  let partition query tol tree =
+    let rec loop included excluded = function
+      | Empty -> (included, excluded)
+      | Bucket b ->
+        let b_d = P.dist query b.vp in
+        (* should we inspect bucket points? *)
+        if b_d -. b.sup > tol then (* no *)
+          (included, to_list_loop excluded (Bucket b))
+          (* are all remaining points included? *)
+        else if b_d +. b.sup <= tol then (* yes *)
+          (to_list_loop included (Bucket b), excluded)
+        else (* we need to inspect the bucket *)
+          let included', excluded' =
+            if b_d <= tol then
+              (b.vp :: included, excluded)
+            else
+              (included, b.vp :: excluded) in
+          A.fold_left (fun (included'', excluded'') y ->
+              let y_d = P.dist query y in
+              if y_d <= tol then
+                (y :: included'', excluded'')
+              else
+                (included'', y :: excluded'')
+            ) (included', excluded') b.points
+      | Node n ->
+        let l_d = P.dist query n.l_vp in
+        (* should we dive left? *)
+        let included', excluded' =
+          if l_d -. n.l_sup > tol then (* no *)
+            (included, to_list_loop (n.l_vp :: excluded) n.left)
+          else if l_d +. n.l_sup <= tol then
+            (* all remaining points are included *)
+            (to_list_loop (n.l_vp :: included) n.left, excluded)
+          else
+            (* need to inspect further *)
+            let included'', excluded'' =
+              if l_d <= tol then
+                (n.l_vp :: included, excluded)
+              else
+                (included, n.l_vp :: excluded) in
+            loop included'' excluded'' n.left in
+        (* should we dive right? *)
+        let r_d = P.dist query n.r_vp in
+        if r_d -. n.r_sup > tol then (* no *)
+          (included', to_list_loop (n.r_vp :: excluded') n.right)
+        else if r_d +. n.r_sup <= tol then
+          (* all remaining points are included *)
+          (to_list_loop (n.r_vp :: included') n.right, excluded')
+        else
+          (* need to inspect further *)
+          let included'', excluded'' =
+            if r_d <= tol then
+              (n.r_vp :: included', excluded')
+            else
+              (included', n.r_vp :: excluded') in
+          loop included'' excluded'' n.right in
+    loop [] [] tree
 
   (* test if the tree invariant holds.
      If it doesn't, we are in trouble... *)

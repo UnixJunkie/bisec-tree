@@ -69,6 +69,11 @@ sig
       distance from [q]. *)
   val neighbors: P.t -> float -> t -> P.t list
 
+  (** [partition q tol bst] is like [neighbors], but a pair
+      [(xs, ys)] is returned, such that [(d <= tol)]
+      for any [x] and [(d > tol)] for any [y]. *)
+  val partition: P.t -> float -> t -> P.t list * P.t list
+
   (** [to_list bst] return the list of points inside [bst],
       in an unspecified order. *)
   val to_list: t -> P.t list

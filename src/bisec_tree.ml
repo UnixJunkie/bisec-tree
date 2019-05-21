@@ -472,6 +472,25 @@ module Make = functor (P: Point) -> struct
   let vantage_points =
     inspect
 
+  (* extract vantage points which are not attached to a bucket *)
+  let orfan_vantage_points tree =
+    let rec loop acc = function
+      | Empty | Bucket _ -> acc
+      | Node n ->
+        let acc' = n.l_vp :: n.r_vp :: acc in
+        let acc'' = loop acc' n.left in
+        loop acc'' n.right in
+    loop [] tree
+
+  (* collect all buckets *)
+  let buckets tree =
+    let rec loop acc = function
+      | Empty -> acc
+      | Bucket b -> b :: acc
+      | Node n ->
+        loop (loop acc n.left) n.right in
+    loop [] tree
+
   let find query tree =
     let nearest_p, nearest_d = nearest_neighbor query tree in
     (* Log.warn "nearest_d: %f" nearest_d; *)

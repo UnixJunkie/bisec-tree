@@ -111,6 +111,9 @@ sig
       in an unspecified order. *)
   val inspect: t -> P.t list
 
+  (** alias for [inspect] *)
+  val vantage_points: t -> P.t list
+
   (** [dump max_depth bst] list points and paths to reach
       them in the [bst], going down up to [max_depth]. *)
   val dump: int -> t -> (direction list * P.t list) list
@@ -125,5 +128,18 @@ sig
 
   (** [to_string bst] create a string representation/summary for [bst] *)
   val to_string: t -> string
+
+  (** [simplify bst] compute the hierarchical simplification of
+      the point set contained in [bst]. If [bst] was not constructed
+      with [k > 1], it is stupid to call [simplify].
+      For example, if you want to reduce the size of your point set by at
+      least 10. First, construct a bst with k=10.
+      Then, call [simplify] on it.
+      The result is a list of points lists.
+      You should average each points list in order to get the
+      simplified point set. Note that if your points carry a payload,
+      during averaging the payload might also need to be weighted or averaged
+      in some way (depending on your application).*)
+  val simplify: t -> (P.t list) list
 
 end

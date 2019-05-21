@@ -26,14 +26,15 @@ type step = L of float (* dist to l_vp *)
           | R of float (* dist to r_vp *)
 
 let string_of_addr addr =
-  let char_of_step = function
-    | L _ -> '0'
-    | R _ -> '1' in
-  let buff = Buffer.create 80 in
-  L.iter (fun a ->
-      Buffer.add_char buff (char_of_step a)
+  let n = L.length addr in
+  let buff = Bytes.create n in
+  L.iteri (fun i s ->
+      Bytes.unsafe_set buff i (match s with
+          | L _ -> '0'
+          | R _ -> '1'
+        )
     ) addr;
-  Buffer.contents buff
+  Bytes.to_string buff
 
 let string_of_path path =
   let char_of_dir = function
@@ -468,6 +469,9 @@ module Make = functor (P: Point) -> struct
         loop acc'' n.right in
     loop [] tree
 
+  let vantage_points =
+    inspect
+
   let find query tree =
     let nearest_p, nearest_d = nearest_neighbor query tree in
     (* Log.warn "nearest_d: %f" nearest_d; *)
@@ -570,5 +574,12 @@ module Make = functor (P: Point) -> struct
    *           add point addr acc
    *         ) bst addr_indexes
    *     end *)
+
+  let simplify _t =
+    (* get all buckets and their addresses *)
+    (* get all vps *)
+    (* address each of them *)
+    (* return the list of points associated with each address *)
+    failwith "not implemented yet"
 
 end

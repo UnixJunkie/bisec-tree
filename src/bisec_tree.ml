@@ -2,6 +2,7 @@
 open Printf
 
 module A = BatArray
+module Ht = Hashtbl
 module L = List
 
 (* Functorial interface *)
@@ -67,6 +68,10 @@ module Make = functor (P: Point) -> struct
         | Bucket of bucket
 
   let rng = Random.State.make_self_init ()
+
+  (* points of the bucket as a list; bucket's vp included *)
+  let points_of_bucket (b: bucket): P.t list =
+    b.vp :: (A.to_list b.points)
 
   (* n must be > 0 *)
   let rand_int n =
@@ -483,7 +488,7 @@ module Make = functor (P: Point) -> struct
     loop [] tree
 
   (* collect all buckets *)
-  let buckets tree =
+  let buckets (tree: t): bucket list =
     let rec loop acc = function
       | Empty -> acc
       | Bucket b -> b :: acc
@@ -594,11 +599,39 @@ module Make = functor (P: Point) -> struct
    *         ) bst addr_indexes
    *     end *)
 
-  let simplify _t =
+  (* Hierarchical simplification from:
+     Pauly, M., Gross, M., & Kobbelt, L. P. (2002, October).
+     Efficient simplification of point-sampled surfaces.
+     In Proceedings of the conference on Visualization'02 (pp. 163-170).
+     IEEE Computer Society. *)
+  let simplify t =
+    (* get orfan vps *)
+    let orfan_vps = orfan_vantage_points t in
     (* get all buckets and their addresses *)
-    (* get all vps *)
-    (* address each of them *)
+    let all_buckets = buckets t in
+    (* maximum number of distinct adresses *)
+    let n = (L.length orfan_vps) + (L.length all_buckets) in
+    let addr_to_points = Ht.create n in
+    L.iter (fun (b: bucket) ->
+        let addr = get_addr b.vp t in
+        let points = points_of_bucket b in
+        try
+          let prev_points = Ht.find addr_to_points addr in
+          let curr_points = L.rev_append points prev_points in
+          Ht.replace addr_to_points addr curr_points
+        with Not_found ->
+          Ht.add addr_to_points addr points
+      ) all_buckets;
+    (* address each orfan vp and assign it to a bucket *)
+    L.iter (fun vp ->
+        let addr = get_addr vp t in
+        (* each vp is supposed to end up with an address which
+           is already assigned to a bucket.
+           i.e. find is not supposed to raise Not_found *)
+        Ht.replace addr_to_points addr
+          (vp :: (Ht.find addr_to_points addr))
+      ) orfan_vps;
     (* return the list of points associated with each address *)
-    failwith "not implemented yet"
+    Ht.fold (fun _k v acc -> v :: acc) addr_to_points []
 
 end

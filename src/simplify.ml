@@ -1,4 +1,6 @@
+open Printf
 
+module CLI = Minicli.CLI
 module L = BatList
 
 let square x =
@@ -15,13 +17,15 @@ module P = struct
   let average points =
     let n = float (L.length points) in
     let (u, v, w) =
-      L.fold_left (fun (x, y, z) (x', y', x') ->
+      L.fold_left (fun (x, y, z) (x', y', z') ->
           (x +. x', y +. y', z +. z')
         ) (0., 0., 0.) points in
     (u /. n, v /. n, w /. n)
 end
 
 module BST = Bst.Bisec_tree.Make (P)
+
+type filename = string
 
 let with_in_file (fn: filename) (f: in_channel -> 'a): 'a =
   let input = open_in_bin fn in
@@ -39,16 +43,17 @@ let map_on_lines_of_file (fn: filename) (f: string -> 'a): 'a list =
 let main () =
   Log.color_on ();
   Log.set_log_level Log.INFO;
+  let _argc, args = CLI.init () in
+  let k = CLI.get_int ["-k"] args in
   let points =
     let all_points =
       map_on_lines_of_file "data/bunny.txt" (fun line ->
-          Scanf.sscanf "%f %f %f" (fun x y z -> (x, y, z))
+          Scanf.sscanf line "%f %f %f" (fun x y z -> (x, y, z))
         ) in
     Array.of_list all_points in
-  let k = 10 in
   let tree = BST.(create k Two_bands) points in
   let summarized = BST.simplify tree in
-  let averaged = L.map average points in
+  let averaged = L.map P.average summarized in
   L.iter (fun (x, y, z) ->
       printf "%f %f %f\n" x y z
     ) averaged

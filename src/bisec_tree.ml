@@ -482,9 +482,7 @@ module Make = functor (P: Point) -> struct
     let rec loop acc = function
       | Empty | Bucket _ -> acc
       | Node n ->
-        let acc' = n.l_vp :: n.r_vp :: acc in
-        let acc'' = loop acc' n.left in
-        loop acc'' n.right in
+        loop (loop (n.l_vp :: n.r_vp :: acc) n.left) n.right in
     loop [] tree
 
   (* collect all buckets *)
@@ -622,16 +620,20 @@ module Make = functor (P: Point) -> struct
         with Not_found ->
           Ht.add addr_to_points addr points
       ) all_buckets;
-    (* address each orfan vp and assign it to a bucket *)
+    (* address each orfan vp and add it to points at the same address,
+       if any *)
     L.iter (fun vp ->
         let addr = get_addr vp t in
-        (* each vp is supposed to end up with an address which
-           is already assigned to a bucket.
-           i.e. find is not supposed to raise Not_found *)
-        Ht.replace addr_to_points addr
-          (vp :: (Ht.find addr_to_points addr))
+        try
+          let prev_points = Ht.find addr_to_points addr in
+          Ht.replace addr_to_points addr (vp :: prev_points)
+        with Not_found ->
+          (* under a vantage point can be an empty tree:
+             in that case, there are no bucket points with the same address
+             already *)
+          Ht.add addr_to_points addr [vp]
       ) orfan_vps;
-    (* return the list of points associated with each address *)
+    (* return the list of points associated to each address *)
     Ht.fold (fun _k v acc -> v :: acc) addr_to_points []
 
 end

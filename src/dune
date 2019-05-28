@@ -5,6 +5,6 @@
   (libraries batteries))
 
 (executables
-  (names   test dump)
-  (modules test dump)
+  (names   test dump simplify)
+  (modules test dump simplify)
   (libraries unix dolog batteries minicli bst))

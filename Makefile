@@ -4,8 +4,9 @@ all:
 	dune build @install
 
 test:
-	dune build test.exe
-	_build/default/test.exe
+	dune build src/test.exe
+	dune build src/simplify.exe
+	_build/default/src/test.exe
 
 install: all
 	dune install

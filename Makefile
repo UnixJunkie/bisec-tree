@@ -26,4 +26,5 @@ doc:
 	ocamldoc -html -d doc bisec_tree.mli
 
 clean:
-	rm -rf _build
+	rm -rf _build test_*.txt
+

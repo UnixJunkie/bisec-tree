@@ -27,4 +27,3 @@ doc:
 
 clean:
 	rm -rf _build test_*.txt
-

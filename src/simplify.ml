@@ -33,6 +33,12 @@ let with_in_file (fn: filename) (f: in_channel -> 'a): 'a =
   close_in input;
   res
 
+let with_out_file (fn: filename) (f: out_channel -> 'a): 'a =
+  let output = open_out_bin fn in
+  let res = f output in
+  close_out output;
+  res
+
 let map_on_lines_of_file (fn: filename) (f: string -> 'a): 'a list =
   with_in_file fn (fun input ->
       let res, exn = L.unfold_exc (fun () -> f (input_line input)) in
@@ -53,9 +59,18 @@ let main () =
     Array.of_list all_points in
   let tree = BST.(create k Two_bands) points in
   let summarized = BST.simplify tree in
+  L.iteri (fun i group ->
+      let fn = sprintf "test_%05d.txt" i in
+      with_out_file fn (fun out ->
+          L.iter (fun (x, y, z) ->
+              fprintf out "%f %f %f\n" x y z
+            ) group
+        );
+      printf "%s\n" fn
+    ) summarized;
   let averaged = L.map P.average summarized in
   L.iter (fun (x, y, z) ->
-      printf "%f %f %f\n" x y z
+      eprintf "%f %f %f\n" x y z
     ) averaged
 
 let () = main ()

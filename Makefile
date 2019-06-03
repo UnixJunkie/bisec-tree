@@ -10,7 +10,7 @@ test:
 simplify:
 	dune build src/simplify.exe
 	_build/default/src/simplify.exe -k 50 data/bunny.txt \
-	  > data/bunny_simple.txt
+	  2> data/bunny_simple.txt
 	wc -l data/bunny.txt data/bunny_simple.txt
 
 install: all

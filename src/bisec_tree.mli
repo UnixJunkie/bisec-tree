@@ -13,7 +13,14 @@ sig
   val dist: t -> t -> float
 end
 
-(** Heuristic to find good vantage (reference) points. *)
+(** Heuristics to find good vantage (reference) points.
+    One_band is faster (at tree construction time),
+    but the resulting tree should be less efficient for queries.
+    Two_bands (recommended) is more expensive (at tree construction time)
+    but queries should be faster.
+    Heuristics inspired by
+    "Near Neighbor Search in Large Metric Spaces";
+    Sergey Brin; November 20, 1995. *)
 type vp_heuristic = One_band | Two_bands
 
 (** To reach a point in the bst, you need to follow a path.
@@ -68,6 +75,11 @@ sig
       I.e. all points returned are within [(d <= tol)]
       distance from [q]. *)
   val neighbors: P.t -> float -> t -> P.t list
+
+  (** [any_neighbor q tol bst] tell if the range query
+      [neighbors q tol bst] would return some neighbors,
+      but much faster than doing the actual range query. *)
+  val any_neighbor: P.t -> float -> t -> bool
 
   (** [partition q tol bst] is like [neighbors], but a pair
       [(xs, ys)] is returned, such that [(d <= tol)]

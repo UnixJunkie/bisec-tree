@@ -396,7 +396,9 @@ module Make = functor (P: Point) -> struct
         else if b_d +. b.sup <= tol then (* yes *)
           raise Found
         else (* we need to inspect the bucket *)
-          let () = if b_d <= tol then raise Found else () in
+        if b_d <= tol then
+          raise Found
+        else
           A.iter (fun y ->
               if P.dist query y <= tol then raise Found
             ) b.points
@@ -408,9 +410,10 @@ module Make = functor (P: Point) -> struct
           else if l_d +. n.l_sup <= tol then
             (* all remaining points are included *)
             raise Found
+          else (* need to inspect further *)
+          if l_d <= tol then
+            raise Found
           else
-            (* need to inspect further *)
-            let () = if l_d <= tol then raise Found else () in
             loop n.left in
         (* should we dive right? *)
         let r_d = P.dist query n.r_vp in
@@ -418,9 +421,10 @@ module Make = functor (P: Point) -> struct
         else if r_d +. n.r_sup <= tol then
           (* all remaining points are included *)
           raise Found
+        else (* need to inspect further *)
+        if r_d <= tol then
+          raise Found
         else
-          (* need to inspect further *)
-          let () = if r_d <= tol then raise Found else () in
           loop n.right in
     try (loop tree; false)
     with Found -> true

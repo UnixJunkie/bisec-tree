@@ -54,6 +54,11 @@ let neighbors_brute_force query tol points =
         acc
     ) [] points
 
+let any_neighbor_brute_force query tol points =
+  match neighbors_brute_force query tol points with
+  | [] -> false (* not any neighbor *)
+  | _ -> true (* some *)
+
 let partition_brute_force query tol points =
   A.fold_left (fun (ok, ko) p ->
       if P.dist query p <= tol then
@@ -133,6 +138,14 @@ let main () =
          let smart_points = BST.neighbors p tol tree_k1 in
          Log.debug "tol: %f card: %d" tol (L.length smart_points);
          L.sort compare brute_points = L.sort compare smart_points
+      ) points
+  );
+  Log.info "testing any_neighbor queries...";
+  assert(
+    A.for_all
+      (fun p ->
+         let tol = Random.State.float rng 1.0 in
+         any_neighbor_brute_force p tol points = BST.any_neighbor p tol tree_k1
       ) points
   );
   Log.info "testing partition...";

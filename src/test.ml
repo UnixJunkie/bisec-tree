@@ -2,6 +2,7 @@ open Printf
 
 module A = BatArray
 module L = List
+module Log = Dolog.Log
 
 let square x =
   x *. x
